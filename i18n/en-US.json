@@ -528,11 +528,26 @@
 		"developerPage": {
 			"pageTitle": "Developer Settings",
 			"title": "Developer Settings",
-			"subtitle": "Manage your API keys and developer resources.",
+			"subtitle": "Manage your API keys, MCP integration, and developer resources.",
 			"apiKeysCardTitle": "API Keys",
 			"apiKeysCardDescription": "Create and manage API keys for programmatic access to Kaneo.",
 			"createApiKey": "Create API Key",
-			"unnamedKey": "Unnamed Key"
+			"unnamedKey": "Unnamed Key",
+			"handbookCardTitle": "Developer Handbook & Workflow",
+			"handbookCardDescription": "Guides for Git automation, MCP setup for AI coding assistants, and API integration.",
+			"openHandbook": "Read Full Handbook",
+			"mcpTitle": "Model Context Protocol (MCP)",
+			"mcpDescription": "Connect AI tools (Claude Code, Cursor, Codex) to read and update Kaneo tasks directly.",
+			"mcpEndpoint": "MCP Server Endpoint",
+			"mcpCopied": "MCP endpoint copied to clipboard",
+			"gitWorkflowTitle": "Git Branch & Commit Conventions",
+			"gitWorkflowBranch": "Task branch pattern",
+			"gitWorkflowBranchDesc": "{project-slug}-{task-number}-{short-title} (e.g. kan-12-fix-login)",
+			"gitWorkflowClose": "Auto-close via commit",
+			"gitWorkflowCloseDesc": "Include 'fixes #<issue>' in commit body to resolve tasks on push",
+			"openapiTitle": "OpenAPI Specification",
+			"openapiDescription": "Interactive OpenAPI 3.0 specification for all REST API endpoints.",
+			"viewOpenApi": "View OpenAPI Spec"
 		},
 		"apiKey": {
 			"createdModal": {
