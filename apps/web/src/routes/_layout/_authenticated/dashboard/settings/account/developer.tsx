@@ -16,6 +16,7 @@ import PageTitle from "@/components/page-title";
 import { ApiKeyCreatedModal } from "@/components/settings/api-key-created-modal";
 import { ApiKeyTable } from "@/components/settings/api-key-table";
 import { CreateApiKeyDialog } from "@/components/settings/create-api-key-dialog";
+import { DeveloperHandbookModal } from "@/components/settings/developer-handbook-modal";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -44,6 +45,7 @@ function RouteComponent() {
     key: string;
     name: string;
   } | null>(null);
+  const [handbookModalOpen, setHandbookModalOpen] = useState(false);
   const [copiedMcp, setCopiedMcp] = useState(false);
 
   const mcpUrl =
@@ -54,8 +56,6 @@ function RouteComponent() {
     typeof window !== "undefined"
       ? `${window.location.origin}/api/openapi`
       : "/api/openapi";
-  const handbookUrl =
-    "https://kaneo.app/docs/core/functional/git-task-workflow";
 
   const handleCopyMcp = () => {
     navigator.clipboard.writeText(mcpUrl);
@@ -103,10 +103,10 @@ function RouteComponent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(handbookUrl, "_blank")}
+                  onClick={() => setHandbookModalOpen(true)}
                   className="gap-2"
                 >
-                  <ExternalLink className="size-3.5" />
+                  <BookOpen className="size-3.5" />
                   {t("settings:developerPage.openHandbook")}
                 </Button>
               </CardAction>
@@ -250,6 +250,11 @@ function RouteComponent() {
           onClose={handleCreatedModalClose}
         />
       )}
+
+      <DeveloperHandbookModal
+        open={handbookModalOpen}
+        onClose={() => setHandbookModalOpen(false)}
+      />
     </>
   );
 }
