@@ -12,7 +12,10 @@ import {
 } from "../plugins/github/config";
 import { handleGitHubWebhook } from "../plugins/github/webhook-handler";
 import { githubIntegrationSchema } from "../schemas";
-import { requireWorkspacePermission } from "../utils/require-workspace-permission";
+import {
+  hasWorkspacePermission,
+  requireWorkspacePermission,
+} from "../utils/require-workspace-permission";
 import { validateWorkspaceAccess } from "../utils/validate-workspace-access";
 import { workspaceAccess } from "../utils/workspace-access-middleware";
 import createGithubIntegration from "./controllers/create-github-integration";
@@ -171,7 +174,15 @@ const githubIntegration = new Hono<{
     workspaceAccess.fromProject("projectId"),
     async (c) => {
       const { projectId } = c.req.valid("param");
-      const integration = await getGithubIntegration(projectId);
+      // Only reveal the webhook signing secret to workspace-settings managers,
+      // matching the GitLab integration; other members get it omitted.
+      const includeWebhookSecret = await hasWorkspacePermission(c, {
+        workspace: ["manage_settings"],
+      });
+      const integration = await getGithubIntegration(
+        projectId,
+        includeWebhookSecret,
+      );
       return c.json(integration);
     },
   )

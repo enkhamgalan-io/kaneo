@@ -6,7 +6,10 @@ import {
   type GitHubConfig,
 } from "../../plugins/github/config";
 
-async function getGithubIntegration(projectId: string) {
+async function getGithubIntegration(
+  projectId: string,
+  includeWebhookSecret = false,
+) {
   const integration = await db.query.integrationTable.findFirst({
     where: and(
       eq(integrationTable.projectId, projectId),
@@ -38,7 +41,10 @@ async function getGithubIntegration(projectId: string) {
     authMode,
     hasAccessToken: authMode === "token",
     webhookUrl,
-    webhookSecret: authMode === "token" ? config.webhookSecret : undefined,
+    webhookSecret:
+      authMode === "token" && includeWebhookSecret
+        ? config.webhookSecret
+        : undefined,
     branchPattern: config.branchPattern || defaultGitHubConfig.branchPattern,
     commentTaskLinkOnGitHubIssue: config.commentTaskLinkOnGitHubIssue !== false,
     isActive: integration.isActive,
