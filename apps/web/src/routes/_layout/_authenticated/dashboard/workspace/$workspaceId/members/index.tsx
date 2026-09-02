@@ -11,7 +11,7 @@ import useGetFullWorkspace from "@/hooks/queries/workspace/use-get-full-workspac
 import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
 
 export const Route = createFileRoute(
-  "/_layout/_authenticated/dashboard/workspace/$workspaceId/members",
+  "/_layout/_authenticated/dashboard/workspace/$workspaceId/members/",
 )({
   component: RouteComponent,
 });

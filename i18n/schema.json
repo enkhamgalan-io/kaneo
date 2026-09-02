@@ -8221,9 +8221,12 @@
 								},
 								"actions": {
 									"type": "string"
+								},
+								"tasks": {
+									"type": "string"
 								}
 							},
-							"required": ["name", "role", "joined", "actions"]
+							"required": ["name", "role", "joined", "actions", "tasks"]
 						},
 						"memberRolePending": {
 							"type": "string"
@@ -8272,6 +8275,18 @@
 						},
 						"roleUpdateError": {
 							"type": "string"
+						},
+						"openTasks_one": {
+							"type": "string"
+						},
+						"openTasks_other": {
+							"type": "string"
+						},
+						"overdueTasks_one": {
+							"type": "string"
+						},
+						"overdueTasks_other": {
+							"type": "string"
 						}
 					},
 					"required": [
@@ -8293,7 +8308,112 @@
 						"cancelInviteSuccess",
 						"cancelInviteError",
 						"roleUpdateSuccess",
-						"roleUpdateError"
+						"roleUpdateError",
+						"openTasks_one",
+						"openTasks_other",
+						"overdueTasks_one",
+						"overdueTasks_other"
+					]
+				},
+				"memberTasks": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"pageTitle": {
+							"type": "string"
+						},
+						"backToMembers": {
+							"type": "string"
+						},
+						"notFoundTitle": {
+							"type": "string"
+						},
+						"notFoundDescription": {
+							"type": "string"
+						},
+						"emptyTitle": {
+							"type": "string"
+						},
+						"emptyDescription": {
+							"type": "string"
+						},
+						"summary": {
+							"type": "object",
+							"additionalProperties": false,
+							"properties": {
+								"total": {
+									"type": "string"
+								},
+								"open": {
+									"type": "string"
+								},
+								"overdue": {
+									"type": "string"
+								},
+								"done": {
+									"type": "string"
+								},
+								"backlog": {
+									"type": "string"
+								},
+								"archived": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"total",
+								"open",
+								"overdue",
+								"done",
+								"backlog",
+								"archived"
+							]
+						},
+						"byState": {
+							"type": "string"
+						},
+						"acrossProjects_one": {
+							"type": "string"
+						},
+						"acrossProjects_other": {
+							"type": "string"
+						},
+						"projectArchived": {
+							"type": "string"
+						},
+						"projectCounts": {
+							"type": "string"
+						},
+						"overdueCount_one": {
+							"type": "string"
+						},
+						"overdueCount_other": {
+							"type": "string"
+						},
+						"completedTasks_one": {
+							"type": "string"
+						},
+						"completedTasks_other": {
+							"type": "string"
+						}
+					},
+					"required": [
+						"pageTitle",
+						"backToMembers",
+						"notFoundTitle",
+						"notFoundDescription",
+						"emptyTitle",
+						"emptyDescription",
+						"summary",
+						"byState",
+						"acrossProjects_one",
+						"acrossProjects_other",
+						"projectArchived",
+						"projectCounts",
+						"overdueCount_one",
+						"overdueCount_other",
+						"completedTasks_one",
+						"completedTasks_other"
 					]
 				}
 			},
@@ -8302,7 +8422,8 @@
 				"members",
 				"invitations",
 				"inviteModal",
-				"membersTable"
+				"membersTable",
+				"memberTasks"
 			]
 		},
 		"publicProject": {

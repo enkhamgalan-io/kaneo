@@ -2212,7 +2212,8 @@
 				"name": "Name",
 				"role": "Role",
 				"joined": "Joined",
-				"actions": "Actions"
+				"actions": "Actions",
+				"tasks": "Tasks"
 			},
 			"memberRolePending": "{{role}} (Pending)",
 			"ariaCancelInvitation": "Cancel invitation",
@@ -2229,7 +2230,36 @@
 			"cancelInviteSuccess": "Invitation cancelled successfully",
 			"cancelInviteError": "Failed to cancel invitation",
 			"roleUpdateSuccess": "Role updated",
-			"roleUpdateError": "Failed to update role"
+			"roleUpdateError": "Failed to update role",
+			"openTasks_one": "{{count}} open",
+			"openTasks_other": "{{count}} open",
+			"overdueTasks_one": "{{count}} overdue",
+			"overdueTasks_other": "{{count}} overdue"
+		},
+		"memberTasks": {
+			"pageTitle": "Member tasks",
+			"backToMembers": "Back to members",
+			"notFoundTitle": "Member not found",
+			"notFoundDescription": "This person is not a member of this workspace.",
+			"emptyTitle": "No tasks assigned",
+			"emptyDescription": "{{name}} has no tasks assigned in this workspace yet.",
+			"summary": {
+				"total": "Total",
+				"open": "Open",
+				"overdue": "Overdue",
+				"done": "Done",
+				"backlog": "Backlog",
+				"archived": "Archived"
+			},
+			"byState": "By state",
+			"acrossProjects_one": "Across {{count}} project",
+			"acrossProjects_other": "Across {{count}} projects",
+			"projectArchived": "Archived",
+			"projectCounts": "{{open}} open of {{total}}",
+			"overdueCount_one": "{{count}} overdue",
+			"overdueCount_other": "{{count}} overdue",
+			"completedTasks_one": "{{count}} completed task",
+			"completedTasks_other": "{{count}} completed tasks"
 		}
 	},
 	"publicProject": {
