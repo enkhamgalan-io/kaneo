@@ -11,7 +11,7 @@ import type { GitlabConfig } from "../config";
 import { findAllIntegrationsByGitlabProject } from "../services/integration-lookup";
 import { createGitlabClient } from "../utils/gitlab-api";
 import {
-  findKaneoUserByEmail,
+  findAssignableKaneoUser,
   resolveGitlabAssigneeEmail,
 } from "../utils/user-matcher";
 import { baseUrlFromProjectWebUrl } from "../utils/webhook-repo";
@@ -243,7 +243,10 @@ export async function handleGitlabIssueEdited(
           );
 
           if (email) {
-            const kaneoUser = await findKaneoUserByEmail(email);
+            const kaneoUser = await findAssignableKaneoUser(
+              email,
+              task.projectId,
+            );
             if (kaneoUser && task.userId !== kaneoUser.id) {
               updateData.userId = kaneoUser.id;
               updatedMetadata.lastSync.assignee = {

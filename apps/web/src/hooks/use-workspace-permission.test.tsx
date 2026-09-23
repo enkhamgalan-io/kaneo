@@ -4,8 +4,9 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspacePermission } from "./use-workspace-permission";
 
-const { hasPermission } = vi.hoisted(() => ({
+const { hasPermission, session } = vi.hoisted(() => ({
   hasPermission: vi.fn(),
+  session: { user: { role: "user" as string } },
 }));
 
 vi.mock("@/hooks/queries/workspace/use-active-workspace", () => ({
@@ -19,6 +20,7 @@ vi.mock("@/hooks/queries/workspace-users/use-active-workspace-user", () => ({
 vi.mock("@/lib/auth-client", () => ({
   authClient: {
     organization: { hasPermission },
+    useSession: () => ({ data: session }),
   },
 }));
 
@@ -37,6 +39,7 @@ function createWrapper() {
 describe("useWorkspacePermission", () => {
   beforeEach(() => {
     hasPermission.mockReset();
+    session.user.role = "user";
   });
 
   it("keeps update capabilities independent from delete capabilities", async () => {
@@ -69,5 +72,26 @@ describe("useWorkspacePermission", () => {
     expect(result.current.canCreateLabels()).toBe(true);
     expect(result.current.canUpdateLabels()).toBe(true);
     expect(result.current.canDeleteLabels()).toBe(false);
+  });
+
+  it("gives instance admins every project, as the API does, whatever their workspace role", async () => {
+    hasPermission.mockResolvedValue({ data: { success: false } });
+
+    const member = renderHook(() => useWorkspacePermission(), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => {
+      expect(member.result.current.isCheckingPermissions).toBe(false);
+    });
+    expect(member.result.current.canAccessAllProjects()).toBe(false);
+
+    session.user.role = "admin";
+    const instanceAdmin = renderHook(() => useWorkspacePermission(), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => {
+      expect(instanceAdmin.result.current.isCheckingPermissions).toBe(false);
+    });
+    expect(instanceAdmin.result.current.canAccessAllProjects()).toBe(true);
   });
 });

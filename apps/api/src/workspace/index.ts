@@ -5,6 +5,7 @@ import {
   errorResponse,
   jsonResponse,
 } from "../openapi";
+import { getProjectScope } from "../utils/project-access";
 import { requireWorkspacePermission } from "../utils/require-workspace-permission";
 import { workspaceAccess } from "../utils/workspace-access-middleware";
 import getMemberTaskCountsCtrl from "./controllers/get-member-task-counts";
@@ -79,12 +80,25 @@ const workspace = apiRouter<BaseVariables & { workspaceId: string }>()
     c.json(await getWorkspaceMembersCtrl(c.get("workspaceId")), 200),
   )
   .openapi(getWorkspaceMemberTaskCountsRoute, async (c) =>
-    c.json(await getMemberTaskCountsCtrl(c.get("workspaceId")), 200),
+    c.json(
+      await getMemberTaskCountsCtrl(
+        c.get("workspaceId"),
+        await getProjectScope(c),
+      ),
+      200,
+    ),
   )
   .openapi(getWorkspaceMemberTasksRoute, async (c) => {
     // The path userId is the member being viewed; c.get("userId") is the caller.
     const { userId } = c.req.valid("param");
-    return c.json(await getMemberTasksCtrl(c.get("workspaceId"), userId), 200);
+    return c.json(
+      await getMemberTasksCtrl(
+        c.get("workspaceId"),
+        userId,
+        await getProjectScope(c),
+      ),
+      200,
+    );
   });
 
 export default workspace;

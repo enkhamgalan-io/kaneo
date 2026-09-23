@@ -1,6 +1,7 @@
 import { type UseQueryResult, useQueries } from "@tanstack/react-query";
 import getTasks from "@/fetchers/task/get-tasks";
-import { isUnauthorizedError } from "@/lib/http-error";
+import { isClientError } from "@/lib/http-error";
+import { retryServerErrors } from "@/query-client";
 
 export type MemberBoard = Awaited<ReturnType<typeof getTasks>>;
 
@@ -54,7 +55,8 @@ export function useGetMemberBoards(
       staleTime: 30_000,
       refetchOnMount: true,
       refetchInterval: (query: { state: { error: unknown } }) =>
-        isUnauthorizedError(query.state.error) ? false : 30_000,
+        isClientError(query.state.error) ? false : 30_000,
+      retry: retryServerErrors,
     })),
     combine: combineBoards,
   });

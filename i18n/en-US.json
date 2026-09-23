@@ -153,7 +153,8 @@
 					"terracotta": "Terracotta",
 					"rose": "Rose",
 					"crimson": "Crimson"
-				}
+				},
+				"assigneeNotInProject": "{{name}} is not a member of this project. Choose another project or assignee."
 			}
 		}
 	},
@@ -682,8 +683,8 @@
 			"allChangesSaved": "All changes saved",
 			"saveChanges": "Save changes",
 			"defaultRoleDescriptions": {
-				"viewer": "Can view and comment on tasks.",
-				"member": "Can create and manage tasks and projects.",
+				"viewer": "Can view and comment on tasks in the projects they are added to.",
+				"member": "Can create projects, and create and manage tasks in the projects they are added to.",
 				"admin": "Has full access to the workspace."
 			},
 			"resources": {
@@ -713,6 +714,10 @@
 					"share": {
 						"label": "Share",
 						"description": "Can share projects"
+					},
+					"access_all": {
+						"label": "Access all projects",
+						"description": "Can open every project, not only the ones they are added to"
 					}
 				},
 				"task": {
@@ -1416,6 +1421,32 @@
 			"merged": "Merged",
 			"draft": "Draft",
 			"open": "Open"
+		},
+		"projectMembers": {
+			"pageTitle": "Project Members",
+			"title": "Members",
+			"subtitle": "People who can open this project, see its tasks and be assigned to them.",
+			"addTitle": "Add people",
+			"addSubtitle": "Only people added here can open the project. Owners and admins open every project through their role.",
+			"addPlaceholder": "Select a workspace member",
+			"addButton": "Add",
+			"noOneToAdd": "Everyone in the workspace can already open this project.",
+			"listTitle": "Who can open this project",
+			"listSubtitle": "Tasks in this project can be assigned to anyone listed here.",
+			"allProjectsBadge": "All projects",
+			"allProjectsHint": "Their role opens every project, so they cannot be removed here.",
+			"addedBadge": "Member",
+			"remove": "Remove",
+			"removeAriaLabel": "Remove {{name}} from this project",
+			"removeConfirmTitle": "Remove {{name}} from this project?",
+			"removeConfirmDescription": "They will no longer see this project or its tasks. Tasks assigned to them stay assigned.",
+			"toastAdded": "{{name}} can now open this project",
+			"toastRemoved": "{{name}} was removed from this project",
+			"toastAddError": "Could not add them to the project",
+			"toastRemoveError": "Could not remove them from the project",
+			"readOnlyHint": "Only people who can edit projects can change who has access.",
+			"loadError": "Could not load this project's members.",
+			"empty": "Nobody has been added to this project yet."
 		}
 	},
 	"developerGuide": {
@@ -1714,7 +1745,8 @@
 					"renderFailed": "Mermaid diagram couldn't be rendered"
 				}
 			}
-		}
+		},
+		"hiddenProject": "a project you cannot open"
 	},
 	"tasks": {
 		"title": "Tasks",
@@ -2190,7 +2222,12 @@
 			},
 			"noDueDate": "No due date",
 			"reorderHandle": "Reorder project",
-			"reorderError": "Failed to reorder projects"
+			"reorderError": "Failed to reorder projects",
+			"emptyNoAccessDescription": "You have not been added to any project in this workspace. Ask an admin to add you.",
+			"notAvailableTitle": "Project not available",
+			"notAvailableDescription": "This project does not exist, or you have not been added to it.",
+			"backToProjects": "Back to projects",
+			"emptyNoAccessDescriptionCanCreate": "You have not been added to any project in this workspace. Create one, or ask an admin to add you."
 		},
 		"search": {
 			"pageTitle": "Search",
@@ -2319,7 +2356,8 @@
 			"overdueCount_one": "{{count}} overdue",
 			"overdueCount_other": "{{count}} overdue",
 			"completedTasks_one": "{{count}} completed task",
-			"completedTasks_other": "{{count}} completed tasks"
+			"completedTasks_other": "{{count}} completed tasks",
+			"ownProjectsOnly": "Only tasks in projects you have been added to are shown."
 		}
 	},
 	"publicProject": {

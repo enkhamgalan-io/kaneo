@@ -49,6 +49,9 @@ function useUpdateWorkspaceUserRole() {
       queryClient.invalidateQueries({
         queryKey: ["workspace-capabilities", variables.workspaceId],
       });
+      // A role can reach every project or only some, which the project
+      // member lists show.
+      queryClient.invalidateQueries({ queryKey: ["project-members"] });
     },
   });
 }

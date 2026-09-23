@@ -1,6 +1,10 @@
 import { eq, max, sql } from "drizzle-orm";
 import db from "../../database";
-import { columnTable, projectTable } from "../../database/schema";
+import {
+  columnTable,
+  projectMemberTable,
+  projectTable,
+} from "../../database/schema";
 
 export const DEFAULT_PROJECT_COLUMNS = [
   { name: "To Do", slug: "to-do", position: 0, isFinal: false },
@@ -14,6 +18,7 @@ async function createProject(
   name: string,
   icon: string,
   slug: string,
+  creatorId: string,
 ) {
   return db.transaction(async (tx) => {
     // Serialize ordering writes per workspace: without this, two concurrent
@@ -51,6 +56,17 @@ async function createProject(
           isFinal: col.isFinal,
         });
       }
+
+      // The creator joins the project whatever their role, so a Member who
+      // creates one is not locked out of it on the next request.
+      await tx
+        .insert(projectMemberTable)
+        .values({
+          workspaceId,
+          projectId: createdProject.id,
+          userId: creatorId,
+        })
+        .onConflictDoNothing();
     }
 
     return createdProject;

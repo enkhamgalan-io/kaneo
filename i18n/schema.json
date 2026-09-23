@@ -570,6 +570,9 @@
 										"rose",
 										"crimson"
 									]
+								},
+								"assigneeNotInProject": {
+									"type": "string"
 								}
 							},
 							"required": [
@@ -606,7 +609,8 @@
 								"discardDescription",
 								"discardButton",
 								"untitledTask",
-								"labelColors"
+								"labelColors",
+								"assigneeNotInProject"
 							]
 						}
 					},
@@ -2734,9 +2738,29 @@
 												}
 											},
 											"required": ["label", "description"]
+										},
+										"access_all": {
+											"type": "object",
+											"additionalProperties": false,
+											"properties": {
+												"label": {
+													"type": "string"
+												},
+												"description": {
+													"type": "string"
+												}
+											},
+											"required": ["label", "description"]
 										}
 									},
-									"required": ["create", "read", "update", "delete", "share"]
+									"required": [
+										"create",
+										"read",
+										"update",
+										"delete",
+										"share",
+										"access_all"
+									]
 								},
 								"task": {
 									"type": "object",
@@ -5114,6 +5138,110 @@
 						"draft",
 						"open"
 					]
+				},
+				"projectMembers": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"pageTitle": {
+							"type": "string"
+						},
+						"title": {
+							"type": "string"
+						},
+						"subtitle": {
+							"type": "string"
+						},
+						"addTitle": {
+							"type": "string"
+						},
+						"addSubtitle": {
+							"type": "string"
+						},
+						"addPlaceholder": {
+							"type": "string"
+						},
+						"addButton": {
+							"type": "string"
+						},
+						"noOneToAdd": {
+							"type": "string"
+						},
+						"listTitle": {
+							"type": "string"
+						},
+						"listSubtitle": {
+							"type": "string"
+						},
+						"allProjectsBadge": {
+							"type": "string"
+						},
+						"allProjectsHint": {
+							"type": "string"
+						},
+						"addedBadge": {
+							"type": "string"
+						},
+						"remove": {
+							"type": "string"
+						},
+						"removeAriaLabel": {
+							"type": "string"
+						},
+						"removeConfirmTitle": {
+							"type": "string"
+						},
+						"removeConfirmDescription": {
+							"type": "string"
+						},
+						"toastAdded": {
+							"type": "string"
+						},
+						"toastRemoved": {
+							"type": "string"
+						},
+						"toastAddError": {
+							"type": "string"
+						},
+						"toastRemoveError": {
+							"type": "string"
+						},
+						"readOnlyHint": {
+							"type": "string"
+						},
+						"loadError": {
+							"type": "string"
+						},
+						"empty": {
+							"type": "string"
+						}
+					},
+					"required": [
+						"pageTitle",
+						"title",
+						"subtitle",
+						"addTitle",
+						"addSubtitle",
+						"addPlaceholder",
+						"addButton",
+						"noOneToAdd",
+						"listTitle",
+						"listSubtitle",
+						"allProjectsBadge",
+						"allProjectsHint",
+						"addedBadge",
+						"remove",
+						"removeAriaLabel",
+						"removeConfirmTitle",
+						"removeConfirmDescription",
+						"toastAdded",
+						"toastRemoved",
+						"toastAddError",
+						"toastRemoveError",
+						"readOnlyHint",
+						"loadError",
+						"empty"
+					]
 				}
 			},
 			"required": [
@@ -5146,7 +5274,8 @@
 				"repositoryBrowser",
 				"tasksImportExport",
 				"workflowEditor",
-				"externalLinks"
+				"externalLinks",
+				"projectMembers"
 			]
 		},
 		"navigation": {
@@ -6320,6 +6449,9 @@
 						"submitShortcut",
 						"editor"
 					]
+				},
+				"hiddenProject": {
+					"type": "string"
 				}
 			},
 			"required": [
@@ -6335,7 +6467,8 @@
 				"moved",
 				"created",
 				"githubUser",
-				"comment"
+				"comment",
+				"hiddenProject"
 			]
 		},
 		"tasks": {
@@ -8432,6 +8565,21 @@
 						},
 						"reorderError": {
 							"type": "string"
+						},
+						"emptyNoAccessDescription": {
+							"type": "string"
+						},
+						"notAvailableTitle": {
+							"type": "string"
+						},
+						"notAvailableDescription": {
+							"type": "string"
+						},
+						"backToProjects": {
+							"type": "string"
+						},
+						"emptyNoAccessDescriptionCanCreate": {
+							"type": "string"
 						}
 					},
 					"required": [
@@ -8448,7 +8596,12 @@
 						"projectStatus",
 						"noDueDate",
 						"reorderHandle",
-						"reorderError"
+						"reorderError",
+						"emptyNoAccessDescription",
+						"notAvailableTitle",
+						"notAvailableDescription",
+						"backToProjects",
+						"emptyNoAccessDescriptionCanCreate"
 					]
 				},
 				"search": {
@@ -9002,6 +9155,9 @@
 						},
 						"completedTasks_other": {
 							"type": "string"
+						},
+						"ownProjectsOnly": {
+							"type": "string"
 						}
 					},
 					"required": [
@@ -9020,7 +9176,8 @@
 						"summary",
 						"byState",
 						"projectArchived",
-						"projectCounts"
+						"projectCounts",
+						"ownProjectsOnly"
 					]
 				}
 			},

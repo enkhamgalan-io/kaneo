@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { ShortcutNumber } from "@/components/ui/shortcut-number";
 import { useUpdateTaskAssignee } from "@/hooks/mutations/task/use-update-task-assignee";
+import { useAssignableUsers } from "@/hooks/queries/project/use-assignable-users";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
 import { useNumberedShortcuts } from "@/hooks/use-numbered-shortcuts";
 import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
@@ -37,7 +38,18 @@ export default function SubtaskAssigneePopover({
     INITIAL_VISIBLE_USERS,
   );
   const { mutateAsync: updateTaskAssignee } = useUpdateTaskAssignee();
-  const { data: workspaceUsers } = useGetActiveWorkspaceUsers(workspaceId);
+  // Only people who can reach the subtasks' project can be assigned. Subtasks
+  // moved apart have no single project; the API then checks each one.
+  const sharedProjectId = tasks.every(
+    (task) => task.projectId === tasks[0]?.projectId,
+  )
+    ? tasks[0]?.projectId
+    : undefined;
+  const { data: projectUsers } = useAssignableUsers(sharedProjectId);
+  const { data: allWorkspaceUsers } = useGetActiveWorkspaceUsers(
+    sharedProjectId ? "" : workspaceId,
+  );
+  const workspaceUsers = sharedProjectId ? projectUsers : allWorkspaceUsers;
   const { canAssignTasks } = useWorkspacePermission();
   const canAssign = canAssignTasks();
 

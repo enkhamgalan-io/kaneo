@@ -29,10 +29,10 @@ const getTaskTimeEntriesRoute = createRoute({
   request: { params: taskIdParam },
   responses: {
     200: jsonResponse("List of time entries for the task", timeEntryListSchema),
-    400: errorResponse(
-      "Unknown task, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the task's workspace"),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -47,10 +47,10 @@ const getTimeEntryRoute = createRoute({
   request: { params: timeEntryParam },
   responses: {
     200: jsonResponse("Time entry details", timeEntrySchema),
-    400: errorResponse(
-      "Unknown entry, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the entry's workspace"),
+    404: errorResponse(
+      "The time entry does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -74,9 +74,12 @@ const createTimeEntryRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The created time entry", timeEntrySchema),
-    400: errorResponse("Invalid timestamps, or unknown task"),
+    400: errorResponse("Invalid timestamps"),
     403: errorResponse(
       "No workspace access, or missing task:update permission",
+    ),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
     ),
   },
 });
@@ -102,9 +105,12 @@ const updateTimeEntryRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The updated time entry", timeEntrySchema),
-    400: errorResponse("Invalid timestamps, or unknown entry"),
+    400: errorResponse("Invalid timestamps"),
     403: errorResponse(
       "No workspace access, or missing task:update permission",
+    ),
+    404: errorResponse(
+      "The time entry does not exist or is in a project the caller cannot access",
     ),
   },
 });

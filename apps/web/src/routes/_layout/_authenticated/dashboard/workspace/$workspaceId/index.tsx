@@ -156,8 +156,16 @@ function RouteComponent() {
     }
   }, [projects, droppedOrder]);
 
-  const { canCreateProjects, canUpdateProjects } = useWorkspacePermission();
+  const {
+    canCreateProjects,
+    canUpdateProjects,
+    canAccessAllProjects,
+    isCheckingPermissions,
+  } = useWorkspacePermission();
   const canCreate = canCreateProjects();
+  // Someone limited to their own projects may see an empty list in a
+  // workspace full of projects, so the empty state says why.
+  const seesOwnProjectsOnly = !isCheckingPermissions && !canAccessAllProjects();
   // Matches the API, which gates /project/reorder on `project: ["update"]`
   // alone — not the create+update+delete bundle.
   const canReorder = canUpdateProjects();
@@ -316,9 +324,13 @@ function RouteComponent() {
               </EmptyMedia>
               <EmptyTitle>{t("workspace:projects.emptyTitle")}</EmptyTitle>
               <EmptyDescription>
-                {canCreate
-                  ? t("workspace:projects.emptyDescription")
-                  : t("workspace:projects.emptyDescriptionReadOnly")}
+                {seesOwnProjectsOnly
+                  ? canCreate
+                    ? t("workspace:projects.emptyNoAccessDescriptionCanCreate")
+                    : t("workspace:projects.emptyNoAccessDescription")
+                  : canCreate
+                    ? t("workspace:projects.emptyDescription")
+                    : t("workspace:projects.emptyDescriptionReadOnly")}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>

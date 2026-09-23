@@ -27,7 +27,7 @@ import {
   type GitlabMergeRequest,
 } from "../../plugins/gitlab/utils/gitlab-api";
 import {
-  findKaneoUserByEmail,
+  findAssignableKaneoUser,
   resolveGitlabAssigneeEmail,
 } from "../../plugins/gitlab/utils/user-matcher";
 
@@ -221,7 +221,7 @@ async function importSingleIssue(
       config.repositoryPath,
     );
     if (email) {
-      const kaneoUser = await findKaneoUserByEmail(email);
+      const kaneoUser = await findAssignableKaneoUser(email, projectId);
       if (kaneoUser) {
         assignedUserId = kaneoUser.id;
       }

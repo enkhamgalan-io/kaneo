@@ -228,7 +228,7 @@ export default function TaskPropertiesSidebar({
                 </TaskPriorityPopover>
               )}
               {task && (
-                <TaskAssigneePopover task={task} workspaceId={workspaceId}>
+                <TaskAssigneePopover task={task}>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -419,7 +419,7 @@ export default function TaskPropertiesSidebar({
                   </TaskPriorityPopover>
                 )}
                 {task && (
-                  <TaskAssigneePopover task={task} workspaceId={workspaceId}>
+                  <TaskAssigneePopover task={task}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -612,7 +612,7 @@ export default function TaskPropertiesSidebar({
                   </TaskPriorityPopover>
                 )}
                 {task && (
-                  <TaskAssigneePopover task={task} workspaceId={workspaceId}>
+                  <TaskAssigneePopover task={task}>
                     <Button
                       variant="ghost"
                       size="sm"

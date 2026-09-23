@@ -28,6 +28,8 @@ import {
 import { shortcuts } from "@/constants/shortcuts";
 import useGetProject from "@/hooks/queries/project/use-get-project";
 import { useProjectWebSocket } from "@/hooks/use-project-websocket";
+import { isNotFoundError } from "@/lib/http-error";
+import { ProjectNotAvailable } from "./project-not-available";
 
 type ProjectLayoutProps = {
   projectId: string;
@@ -49,11 +51,17 @@ export default function ProjectLayout({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: project } = useGetProject({ id: projectId, workspaceId });
+  const { data: project, error: projectError } = useGetProject({
+    id: projectId,
+    workspaceId,
+  });
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
     useState(false);
+  // Missing, or not one the user has been added to: the API answers both
+  // with 404, and so does this page.
+  const isUnavailable = isNotFoundError(projectError);
 
-  useProjectWebSocket(projectId);
+  useProjectWebSocket(isUnavailable ? "" : projectId);
 
   const resolvedView =
     activeView ??
@@ -171,18 +179,26 @@ export default function ProjectLayout({
               />
             </div>
 
-            {showViewSwitcher && (
+            {showViewSwitcher && !isUnavailable && (
               <ViewSwitcher>{renderViewTabs("segmented")}</ViewSwitcher>
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
-            {headerActions}
-          </div>
+          {!isUnavailable && (
+            <div className="flex shrink-0 items-center gap-1.5">
+              {headerActions}
+            </div>
+          )}
         </div>
       </Layout.Header>
 
-      <Layout.Content>{children}</Layout.Content>
+      <Layout.Content>
+        {isUnavailable ? (
+          <ProjectNotAvailable workspaceId={workspaceId} />
+        ) : (
+          children
+        )}
+      </Layout.Content>
 
       <CreateProjectModal
         open={isCreateProjectModalOpen}

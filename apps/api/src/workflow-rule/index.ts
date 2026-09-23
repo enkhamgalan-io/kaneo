@@ -28,10 +28,10 @@ const getWorkflowRulesRoute = createRoute({
   request: { params: projectIdParam },
   responses: {
     200: jsonResponse("List of workflow rules", workflowRuleListSchema),
-    400: errorResponse(
-      "Unknown project, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the project's workspace"),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it",
+    ),
   },
 });
 
@@ -56,9 +56,12 @@ const upsertWorkflowRuleRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The created or updated rule", workflowRuleRowSchema),
-    400: errorResponse("Invalid body, or unknown project"),
+    400: errorResponse("Invalid body"),
     403: errorResponse(
       "No workspace access, or missing project:update permission",
+    ),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it",
     ),
   },
 });
@@ -77,11 +80,11 @@ const deleteWorkflowRuleRoute = createRoute({
   request: { params: workflowRuleParam },
   responses: {
     200: jsonResponse("The deleted rule", workflowRuleRowSchema),
-    400: errorResponse(
-      "Unknown rule, or its workspace could not be determined",
-    ),
     403: errorResponse(
       "No workspace access, or missing project:update permission",
+    ),
+    404: errorResponse(
+      "The workflow rule does not exist or is in a project the caller cannot access",
     ),
   },
 });

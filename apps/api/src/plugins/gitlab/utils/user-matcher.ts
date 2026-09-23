@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import db from "../../../database";
 import { userTable } from "../../../database/schema";
+import { userCanAccessProject } from "../../../utils/project-access";
 import type { createGitlabClient } from "./gitlab-api";
 
 export async function findKaneoUserByEmail(
@@ -35,6 +36,18 @@ export async function findKaneoUserByEmail(
   }
 
   return null;
+}
+
+// The matched user, only when they can be assigned a task in the project;
+// otherwise the task stays unassigned rather than going to someone who
+// cannot open it.
+export async function findAssignableKaneoUser(
+  emailOrUsername: string,
+  projectId: string,
+) {
+  const user = await findKaneoUserByEmail(emailOrUsername);
+  if (!user) return null;
+  return (await userCanAccessProject(projectId, user.id)) ? user : null;
 }
 
 export async function resolveGitlabAssigneeEmail(

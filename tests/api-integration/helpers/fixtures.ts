@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import db, { schema } from "../../../apps/api/src/database";
 import { DEFAULT_PROJECT_COLUMNS } from "../../../apps/api/src/project/controllers/create-project";
 
@@ -47,16 +48,32 @@ export async function createWorkspaceMember(
   return { user, workspace };
 }
 
+export async function addProjectMember(
+  workspaceId: string,
+  projectId: string,
+  userId: string,
+) {
+  await db
+    .insert(schema.projectMemberTable)
+    .values({ workspaceId, projectId, userId })
+    .onConflictDoNothing();
+}
+
 export async function createProjectFixture({
   workspaceId,
   name = "Integration Project",
   icon = "Folder",
   slug = `project-${randomUUID()}`,
+  members = "workspace",
 }: {
   workspaceId: string;
   name?: string;
   icon?: string;
   slug?: string;
+  // Who is added to the project: everyone already in the workspace (the
+  // default, so tests about other rules are not tripped by project access),
+  // or exactly these user ids.
+  members?: "workspace" | string[];
 }) {
   const [project] = await db
     .insert(schema.projectTable)
@@ -84,6 +101,19 @@ export async function createProjectFixture({
     if (inserted) {
       insertedColumns.push(inserted);
     }
+  }
+
+  const memberIds =
+    members === "workspace"
+      ? (
+          await db
+            .select({ userId: schema.workspaceUserTable.userId })
+            .from(schema.workspaceUserTable)
+            .where(eq(schema.workspaceUserTable.workspaceId, workspaceId))
+        ).map((row) => row.userId)
+      : members;
+  for (const userId of memberIds) {
+    await addProjectMember(workspaceId, project.id, userId);
   }
 
   const columnsBySlug = new Map(

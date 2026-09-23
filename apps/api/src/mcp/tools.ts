@@ -253,7 +253,8 @@ export function registerMcpTools(
   registerTool(
     "list_projects",
     {
-      description: "List projects in a workspace.",
+      description:
+        "List the projects in a workspace that you can open: every project for owners and admins, otherwise the ones you have been added to.",
       inputSchema: z.object({
         workspaceId: nonEmptyString.describe("Workspace ID"),
         includeArchived: z

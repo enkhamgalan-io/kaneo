@@ -1,17 +1,18 @@
 import type { Context } from "hono";
 import { resolveAssetBearerOrCookie } from "./authenticate-api-request";
-import { validateWorkspaceAccess } from "./validate-workspace-access";
+import { authorizeProjectAccess } from "./project-access";
 
 type AssetAccessTarget = {
-  workspaceId: string;
+  projectId: string;
   isPublic: boolean | null;
 };
 
 /**
- * Authorizes a request for a stored asset.
+ * Authorizes a request for a stored asset: readable by anyone when its project
+ * is public, otherwise by whoever can reach the project (workspace, then
+ * project access).
  *
- * Assets that belong to a public project are readable by anyone, so the
- * credential check must be skipped entirely for them:
+ * The credential check must be skipped entirely for public projects:
  * `resolveAssetBearerOrCookie` throws a 401 for anonymous callers rather than
  * returning an empty user, so calling it first makes the public case
  * unreachable.
@@ -24,6 +25,13 @@ export async function authorizeAssetAccess(
     return;
   }
 
-  const { userId, apiKeyId } = await resolveAssetBearerOrCookie(c);
-  await validateWorkspaceAccess(userId, asset.workspaceId, apiKeyId);
+  const { userId, apiKeyId, apiKeyPermissions } =
+    await resolveAssetBearerOrCookie(c);
+  await authorizeProjectAccess({
+    userId,
+    projectId: asset.projectId,
+    apiKeyId,
+    apiKeyPermissions,
+    notFoundMessage: "Asset not found",
+  });
 }

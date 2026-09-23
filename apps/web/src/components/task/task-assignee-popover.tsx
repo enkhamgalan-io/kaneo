@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { ShortcutNumber } from "@/components/ui/shortcut-number";
 import { useUpdateTaskAssignee } from "@/hooks/mutations/task/use-update-task-assignee";
-import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
+import { useAssignableUsers } from "@/hooks/queries/project/use-assignable-users";
 import { useNumberedShortcuts } from "@/hooks/use-numbered-shortcuts";
 import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
 import { getInitials } from "@/lib/get-initials";
@@ -22,13 +22,11 @@ const VISIBLE_USERS_STEP = 40;
 
 type TaskAssigneePopoverProps = {
   task: Task;
-  workspaceId: string;
   children: React.ReactNode;
 };
 
 export default function TaskAssigneePopover({
   task,
-  workspaceId,
   children,
 }: TaskAssigneePopoverProps) {
   const { t } = useTranslation();
@@ -37,7 +35,8 @@ export default function TaskAssigneePopover({
     INITIAL_VISIBLE_USERS,
   );
   const { mutateAsync: updateTaskAssignee } = useUpdateTaskAssignee();
-  const { data: workspaceUsers } = useGetActiveWorkspaceUsers(workspaceId);
+  // Only people who can reach the task's project can be assigned to it.
+  const { data: workspaceUsers } = useAssignableUsers(task.projectId);
   const { canAssignTasks } = useWorkspacePermission();
   const canAssign = canAssignTasks();
 

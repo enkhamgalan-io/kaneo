@@ -32,6 +32,9 @@ function useUpdateWorkspaceRole() {
       queryClient.invalidateQueries({
         queryKey: ["workspace-capabilities", variables.workspaceId],
       });
+      // Granting or removing project:access_all changes who the project
+      // member lists show as reaching every project.
+      queryClient.invalidateQueries({ queryKey: ["project-members"] });
     },
   });
 }

@@ -4,6 +4,10 @@ import {
   errorResponse,
   jsonResponse,
 } from "../openapi";
+import {
+  getProjectScope,
+  requireAccessAllForWorkspaceRecords,
+} from "../utils/project-access";
 import { requireWorkspacePermission } from "../utils/require-workspace-permission";
 import { workspaceAccess } from "../utils/workspace-access-middleware";
 import assignLabelToTask from "./controllers/assign-label-to-task";
@@ -35,10 +39,10 @@ const getTaskLabelsRoute = createRoute({
   request: { params: taskIdParam },
   responses: {
     200: jsonResponse("List of labels for the task", labelListSchema),
-    400: errorResponse(
-      "Unknown task, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the task's workspace"),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -66,7 +70,10 @@ const createLabelRoute = createRoute({
   summary: "Create label",
   description: "Create a new label in a workspace",
   middleware: [
-    workspaceAccess.fromBody(),
+    // A label created directly on a task needs access to that task's project.
+    workspaceAccess.fromBody("workspaceId", {
+      also: [{ key: "taskId", resource: "task", optional: true }],
+    }),
     requireWorkspacePermission({ label: ["create"] }),
   ] as const,
   request: {
@@ -81,7 +88,9 @@ const createLabelRoute = createRoute({
     403: errorResponse(
       "No workspace access, or missing label:create permission",
     ),
-    404: errorResponse("Task not found"),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -96,10 +105,10 @@ const getLabelRoute = createRoute({
   request: { params: labelParam },
   responses: {
     200: jsonResponse("Label details", labelSchema),
-    400: errorResponse(
-      "Unknown label, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the label's workspace"),
+    404: errorResponse(
+      "The label does not exist or is on a task in a project the caller cannot access",
+    ),
   },
 });
 
@@ -111,7 +120,10 @@ const attachLabelToTaskRoute = createRoute({
   summary: "Attach label to task",
   description: "Attach an existing label to a task",
   middleware: [
-    workspaceAccess.fromLabel(),
+    // The task it is attached to as well as the label's own task, if any.
+    workspaceAccess.fromLabel("id", {
+      also: [{ key: "taskId", resource: "task" }],
+    }),
     requireWorkspacePermission({ label: ["update"] }),
   ] as const,
   request: {
@@ -123,13 +135,13 @@ const attachLabelToTaskRoute = createRoute({
   },
   responses: {
     200: jsonResponse("Label attached to task successfully", labelSchema),
-    400: errorResponse(
-      "Unknown label, or label and task belong to different workspaces",
-    ),
+    400: errorResponse("The label and task belong to different workspaces"),
     403: errorResponse(
       "No workspace access, or missing label:update permission",
     ),
-    404: errorResponse("Task not found"),
+    404: errorResponse(
+      "The label or task does not exist, or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -147,11 +159,13 @@ const detachLabelFromTaskRoute = createRoute({
   request: { params: labelParam },
   responses: {
     200: jsonResponse("Label detached from task successfully", labelSchema),
-    400: errorResponse("Unknown label, or label is not assigned to a task"),
+    400: errorResponse("The label is not attached to a task"),
     403: errorResponse(
       "No workspace access, or missing label:update permission",
     ),
-    404: errorResponse("Task not found"),
+    404: errorResponse(
+      "The label or its task does not exist, or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -165,6 +179,9 @@ const updateLabelRoute = createRoute({
   middleware: [
     workspaceAccess.fromLabel(),
     requireWorkspacePermission({ label: ["update"] }),
+    requireAccessAllForWorkspaceRecords(
+      "Changing a workspace label needs access to every project",
+    ),
   ] as const,
   request: {
     params: labelParam,
@@ -175,9 +192,12 @@ const updateLabelRoute = createRoute({
   },
   responses: {
     200: jsonResponse("Label updated successfully", labelSchema),
-    400: errorResponse("Invalid body, or unknown label"),
+    400: errorResponse("Invalid body"),
     403: errorResponse(
-      "No workspace access, or missing label:update permission",
+      "No workspace access, missing label:update permission, or a workspace label (which changes on every task using it) edited without project:access_all",
+    ),
+    404: errorResponse(
+      "The label does not exist or is on a task in a project the caller cannot access",
     ),
   },
 });
@@ -192,17 +212,19 @@ const deleteLabelRoute = createRoute({
   middleware: [
     workspaceAccess.fromLabel(),
     requireWorkspacePermission({ label: ["delete"] }),
+    requireAccessAllForWorkspaceRecords(
+      "Deleting a workspace label needs access to every project",
+    ),
   ] as const,
   request: { params: labelParam },
   responses: {
     200: jsonResponse("Label deleted successfully", labelSchema),
-    400: errorResponse(
-      "Unknown label, or its workspace could not be determined",
-    ),
     403: errorResponse(
-      "No workspace access, or missing label:delete permission",
+      "No workspace access, missing label:delete permission, or a workspace label (removed from every task using it) deleted without project:access_all",
     ),
-    404: errorResponse("The label's task no longer exists"),
+    404: errorResponse(
+      "The label or its task does not exist, or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -213,7 +235,10 @@ const label = apiRouter()
   })
   .openapi(getWorkspaceLabelsRoute, async (c) => {
     const { workspaceId } = c.req.valid("param");
-    return c.json(await getLabelsByWorkspaceId(workspaceId), 200);
+    return c.json(
+      await getLabelsByWorkspaceId(workspaceId, await getProjectScope(c)),
+      200,
+    );
   })
   .openapi(createLabelRoute, async (c) => {
     const { name, color, workspaceId, taskId } = c.req.valid("json");

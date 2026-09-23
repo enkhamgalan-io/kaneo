@@ -8,6 +8,10 @@ import {
   workspaceTable,
   workspaceUserTable,
 } from "../../database/schema";
+import {
+  type ProjectScope,
+  visibleProjectFilter,
+} from "../../utils/project-access";
 import { escapeLikePattern } from "../like-pattern";
 import { TASK_SHORT_ID_PATTERN } from "../task-short-id";
 
@@ -25,6 +29,8 @@ type SearchParams = {
   workspaceId?: string;
   projectId?: string;
   limit?: number;
+  // Which projects the caller may see inside the workspace being searched.
+  scope: ProjectScope;
 };
 
 type SearchResult = {
@@ -109,6 +115,7 @@ async function globalSearch(params: SearchParams): Promise<{
     workspaceId,
     projectId,
     limit = 20,
+    scope,
   } = params;
 
   let resolvedUserId = userId;
@@ -147,6 +154,12 @@ async function globalSearch(params: SearchParams): Promise<{
   const workspaceFilter = workspaceId
     ? eq(projectTable.workspaceId, workspaceId)
     : inArray(projectTable.workspaceId, accessibleWorkspaceIds);
+  // Tasks, projects and activity all resolve to a project, and only projects
+  // the caller can reach are searched.
+  const projectFilter = and(
+    workspaceFilter,
+    visibleProjectFilter(scope, projectTable.id),
+  );
 
   // Check if query matches short-id pattern (e.g. "DEP-23"). `generateProjectSlug`
   // normalizes to NFKC before it stores a key, so the query is normalized too,
@@ -188,7 +201,7 @@ async function globalSearch(params: SearchParams): Promise<{
         .leftJoin(userTable, eq(taskTable.userId, userTable.id))
         .where(
           and(
-            workspaceFilter,
+            projectFilter,
             projectId ? eq(taskTable.projectId, projectId) : undefined,
             // A project key may hold `_`, which `ilike` reads as "any one
             // character", so `DE_-23` would also match a task in `DEP` and the
@@ -256,7 +269,7 @@ async function globalSearch(params: SearchParams): Promise<{
       .leftJoin(userTable, eq(taskTable.userId, userTable.id))
       .where(
         and(
-          workspaceFilter,
+          projectFilter,
           projectId ? eq(taskTable.projectId, projectId) : undefined,
           or(
             ilike(taskTable.title, searchPattern),
@@ -316,7 +329,7 @@ async function globalSearch(params: SearchParams): Promise<{
       .leftJoin(workspaceTable, eq(projectTable.workspaceId, workspaceTable.id))
       .where(
         and(
-          workspaceFilter,
+          projectFilter,
           or(
             ilike(projectTable.name, searchPattern),
             ilike(projectTable.description, searchPattern),
@@ -395,7 +408,9 @@ async function globalSearch(params: SearchParams): Promise<{
   }
 
   if (type === "all" || type === "comments" || type === "activities") {
-    const searchableActivityText = sql<string>`COALESCE(${activityTable.content}, CAST(${activityTable.eventData} AS text), '')`;
+    // A move's event data names both projects, one of which the caller may
+    // not be able to open, so moves are not searched by it.
+    const searchableActivityText = sql<string>`COALESCE(${activityTable.content}, CASE WHEN ${activityTable.type} = 'moved' THEN NULL ELSE CAST(${activityTable.eventData} AS text) END, '')`;
     const activityRelevanceScore = sql<number>`
       CASE
         WHEN LOWER(${searchableActivityText}) LIKE ${searchPattern} THEN 2
@@ -430,7 +445,7 @@ async function globalSearch(params: SearchParams): Promise<{
       .leftJoin(userTable, eq(activityTable.userId, userTable.id))
       .where(
         and(
-          workspaceFilter,
+          projectFilter,
           projectId ? eq(taskTable.projectId, projectId) : undefined,
           or(
             ilike(searchableActivityText, searchPattern),

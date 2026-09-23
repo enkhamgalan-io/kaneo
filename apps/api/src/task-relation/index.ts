@@ -1,8 +1,3 @@
-import { eq } from "drizzle-orm";
-import type { Context, Next } from "hono";
-import { HTTPException } from "hono/http-exception";
-import db from "../database";
-import { projectTable, taskRelationTable, taskTable } from "../database/schema";
 import {
   apiRouter,
   type BaseVariables,
@@ -10,8 +5,8 @@ import {
   errorResponse,
   jsonResponse,
 } from "../openapi";
+import { getProjectScope } from "../utils/project-access";
 import { requireWorkspacePermission } from "../utils/require-workspace-permission";
-import { validateWorkspaceAccess } from "../utils/validate-workspace-access";
 import { workspaceAccess } from "../utils/workspace-access-middleware";
 import createTaskRelation from "./controllers/create-task-relation";
 import deleteTaskRelation from "./controllers/delete-task-relation";
@@ -25,71 +20,6 @@ import {
   taskIdParam,
   taskRelationParam,
 } from "./schema";
-
-async function workspaceIdOfTask(taskId: string) {
-  const [task] = await db
-    .select({ workspaceId: projectTable.workspaceId })
-    .from(taskTable)
-    .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
-    .where(eq(taskTable.id, taskId))
-    .limit(1);
-  return task?.workspaceId ?? null;
-}
-
-function requireUserId(c: Context) {
-  const userId = c.get("userId");
-  if (!userId) {
-    throw new HTTPException(401, { message: "Unauthorized" });
-  }
-  return userId as string;
-}
-
-// Route middleware runs before the request validators, so these read the raw
-// request rather than c.req.valid(), which is not populated yet.
-async function scopeToSourceTask(c: Context, next: Next) {
-  const userId = requireUserId(c);
-
-  const body = (await c.req.json().catch(() => ({}))) as {
-    sourceTaskId?: unknown;
-  };
-  const sourceTaskId =
-    typeof body?.sourceTaskId === "string" ? body.sourceTaskId : null;
-  if (!sourceTaskId) {
-    throw new HTTPException(400, { message: "sourceTaskId is required" });
-  }
-
-  const workspaceId = await workspaceIdOfTask(sourceTaskId);
-  if (!workspaceId) {
-    throw new HTTPException(404, { message: "Source task not found" });
-  }
-
-  await validateWorkspaceAccess(userId, workspaceId);
-  c.set("workspaceId", workspaceId);
-  return next();
-}
-
-async function scopeToRelation(c: Context, next: Next) {
-  const userId = requireUserId(c);
-
-  const id = c.req.param("id");
-  const [rel] = await db
-    .select({ sourceTaskId: taskRelationTable.sourceTaskId })
-    .from(taskRelationTable)
-    .where(eq(taskRelationTable.id, id ?? ""))
-    .limit(1);
-  if (!rel) {
-    throw new HTTPException(404, { message: "Task relation not found" });
-  }
-
-  const workspaceId = await workspaceIdOfTask(rel.sourceTaskId);
-  if (!workspaceId) {
-    throw new HTTPException(404, { message: "Task not found" });
-  }
-
-  await validateWorkspaceAccess(userId, workspaceId);
-  c.set("workspaceId", workspaceId);
-  return next();
-}
 
 const getTaskRelationsRoute = createRoute({
   method: "get",
@@ -106,10 +36,10 @@ const getTaskRelationsRoute = createRoute({
       "Task relations with the linked task summaries",
       taskRelationWithTasksListSchema,
     ),
-    400: errorResponse(
-      "Unknown task, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the task's workspace"),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -122,7 +52,11 @@ const createTaskRelationRoute = createRoute({
   description:
     "Link two tasks. Authorization is scoped to the source task's workspace.",
   middleware: [
-    scopeToSourceTask,
+    // Both tasks: a relation shows each side to the other, so creating one
+    // needs access to both projects.
+    workspaceAccess.fromTaskId("sourceTaskId", {
+      also: [{ key: "targetTaskId", resource: "task" }],
+    }),
     requireWorkspacePermission({ task: ["update"] }),
   ] as const,
   request: {
@@ -133,11 +67,15 @@ const createTaskRelationRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The created relation", taskRelationSchema),
-    400: errorResponse("Invalid body"),
+    400: errorResponse(
+      "Invalid body, or the two tasks belong to different workspaces",
+    ),
     403: errorResponse(
       "No workspace access, or missing task:update permission",
     ),
-    404: errorResponse("Source or target task not found"),
+    404: errorResponse(
+      "The source or target task does not exist, or is in a project the caller cannot access",
+    ),
     409: errorResponse("This relation already exists"),
   },
 });
@@ -150,7 +88,7 @@ const deleteTaskRelationRoute = createRoute({
   summary: "Delete task relation",
   description: "Remove a link between two tasks. Returns the deleted relation.",
   middleware: [
-    scopeToRelation,
+    workspaceAccess.fromTaskRelation("id"),
     requireWorkspacePermission({ task: ["update"] }),
   ] as const,
   request: { params: taskRelationParam },
@@ -159,14 +97,20 @@ const deleteTaskRelationRoute = createRoute({
     403: errorResponse(
       "No workspace access, or missing task:update permission",
     ),
-    404: errorResponse("Task relation not found, or its source task is gone"),
+    404: errorResponse(
+      "The relation does not exist, or one of its tasks is in a project the caller cannot access",
+    ),
   },
 });
 
 const taskRelation = apiRouter<BaseVariables & { workspaceId: string }>()
   .openapi(getTaskRelationsRoute, async (c) =>
     c.json(
-      await getTaskRelations(c.req.valid("param").taskId, c.get("workspaceId")),
+      await getTaskRelations(
+        c.req.valid("param").taskId,
+        c.get("workspaceId"),
+        await getProjectScope(c),
+      ),
       200,
     ),
   )

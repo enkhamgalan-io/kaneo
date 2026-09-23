@@ -5,9 +5,10 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { Eye, GitBranch, Plug, Settings } from "lucide-react";
+import { Eye, GitBranch, Plug, Settings, Users } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { ProjectNotAvailable } from "@/components/common/project-not-available";
 import SettingsSidebar from "@/components/SettingsSidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,11 @@ function RouteComponent() {
       title: t("settings:projectGeneral.title"),
       icon: Settings,
       segment: "general",
+    },
+    {
+      title: t("settings:projectMembers.title"),
+      icon: Users,
+      segment: "members",
     },
     {
       title: t("settings:projectVisibility.title"),
@@ -96,6 +102,10 @@ function RouteComponent() {
   const selectedProject = projects?.find(
     (project) => project.id === selectedProjectId,
   );
+  // The list holds only projects the user can reach, so an id in the URL that
+  // is not in it is missing or hidden. Its settings pages would only fail.
+  const isUnavailable =
+    projects !== undefined && selectedProjectId !== "" && !selectedProject;
 
   return (
     <div className="flex gap-6 h-full">
@@ -208,7 +218,11 @@ function RouteComponent() {
       </SettingsSidebar>
 
       <div className="flex-1 min-w-0 overflow-y-auto">
-        <Outlet />
+        {isUnavailable ? (
+          <ProjectNotAvailable workspaceId={workspace?.id} />
+        ) : (
+          <Outlet />
+        )}
       </div>
     </div>
   );

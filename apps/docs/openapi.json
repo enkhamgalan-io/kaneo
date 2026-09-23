@@ -580,6 +580,56 @@
           "lastTaskNumber"
         ]
       },
+      "ProjectMember": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The user's ID."
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "description": "The user's workspace role."
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "member",
+              "all"
+            ],
+            "description": "\"member\": added to this project. \"all\": their role reaches every project in the workspace (project:access_all), so they cannot be removed here."
+          },
+          "addedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When they were added to the project; null for \"all\"."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "image",
+          "role",
+          "access",
+          "addedAt"
+        ]
+      },
       "BoardResponse": {
         "type": "object",
         "properties": {
@@ -6236,6 +6286,205 @@
         }
       }
     },
+    "/project/{id}/members": {
+      "get": {
+        "operationId": "listProjectMembers",
+        "tags": [
+          "Projects"
+        ],
+        "summary": "List project members",
+        "description": "List everyone who can reach the project: the people added to it, and those whose role reaches every project in the workspace. These are also the people a task in the project can be assigned to.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project's members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectMember"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addProjectMember",
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Add project member",
+        "description": "Give a workspace member access to the project. Adding someone who is already a member changes nothing.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "description": "A member of the project's workspace."
+                  }
+                },
+                "required": [
+                  "userId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project's members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectMember"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing project:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project, or the user in its workspace, was not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project/{id}/members/{userId}": {
+      "delete": {
+        "operationId": "removeProjectMember",
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Remove project member",
+        "description": "Take away a member's access to the project. Their tasks stay assigned to them. People whose role reaches every project keep access and cannot be removed here.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project's members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectMember"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing project:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project or the membership was not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/project/{id}": {
       "get": {
         "operationId": "getProject",
@@ -6265,8 +6514,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6275,11 +6527,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6353,7 +6602,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6367,6 +6616,16 @@
           },
           "403": {
             "description": "No workspace access, or missing project:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6405,8 +6664,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing project:delete permission",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6415,11 +6677,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No workspace access, or missing project:delete permission",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6499,7 +6758,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or workspace ID could not be determined",
+            "description": "Invalid body, workspace ID could not be determined, or a project in the payload is not one the caller can reach in this workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6553,8 +6812,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing project:update permission",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6563,11 +6825,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No workspace access, or missing project:update permission",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6608,8 +6867,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing project:update permission",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6618,11 +6880,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No workspace access, or missing project:update permission",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6750,7 +7009,7 @@
             }
           },
           "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+            "description": "Invalid request",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6764,6 +7023,16 @@
           },
           "403": {
             "description": "No access to the project's workspace",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6850,7 +7119,7 @@
             "description": "Missing or invalid credentials"
           },
           "403": {
-            "description": "No workspace access, or missing the permission the operation needs",
+            "description": "No workspace access, missing the permission the operation needs, or the new assignee cannot reach one of the tasks' projects",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6860,7 +7129,7 @@
             }
           },
           "404": {
-            "description": "No tasks found",
+            "description": "A task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6950,7 +7219,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -6963,7 +7232,17 @@
             "description": "Missing or invalid credentials"
           },
           "403": {
-            "description": "No workspace access, or missing task:create permission",
+            "description": "No workspace access, missing task:create permission, or the assignee is not a member of the project",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7004,8 +7283,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the task's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7014,11 +7296,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the task's workspace",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7112,7 +7391,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7125,7 +7404,17 @@
             "description": "Missing or invalid credentials"
           },
           "403": {
-            "description": "No workspace access, or missing task:update or task:assign permission",
+            "description": "No workspace access, missing task:update or task:assign permission, or the new assignee is not a member of the project",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7164,8 +7453,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing task:delete permission",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7174,11 +7466,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No workspace access, or missing task:delete permission",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7242,7 +7531,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7265,7 +7554,7 @@
             }
           },
           "404": {
-            "description": "Task or destination project not found",
+            "description": "The task or destination project does not exist, or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7306,8 +7595,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7316,11 +7608,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7419,7 +7708,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7433,6 +7722,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:create permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7492,7 +7791,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7506,6 +7805,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7572,7 +7881,7 @@
             }
           },
           "400": {
-            "description": "Invalid priority, or unknown task",
+            "description": "Invalid priority",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7593,6 +7902,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -7604,7 +7923,7 @@
           "Tasks"
         ],
         "summary": "Update task assignee",
-        "description": "Assign a task to a workspace member, or send null to unassign it.",
+        "description": "Assign a task to someone who can reach its project, or send null to unassign it.",
         "parameters": [
           {
             "schema": {
@@ -7649,7 +7968,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7662,7 +7981,7 @@
             "description": "Missing or invalid credentials"
           },
           "403": {
-            "description": "No workspace access, or missing task:assign permission",
+            "description": "No workspace access, missing task:assign permission, or the assignee is not a member of the project",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7672,7 +7991,7 @@
             }
           },
           "404": {
-            "description": "Assignee is not a member of the workspace",
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7729,7 +8048,7 @@
             }
           },
           "400": {
-            "description": "Invalid date, or unknown task",
+            "description": "Invalid date",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7743,6 +8062,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7802,7 +8131,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7816,6 +8145,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8090,7 +8429,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8104,6 +8443,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8147,8 +8496,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8157,11 +8509,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8228,7 +8577,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8242,6 +8591,16 @@
           },
           "403": {
             "description": "No workspace access, or missing project:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8415,7 +8774,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown column",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8429,6 +8788,16 @@
           },
           "403": {
             "description": "No workspace access, or missing project:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The column does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8467,8 +8836,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown column, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing project:update permission",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8477,11 +8849,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No workspace access, or missing project:update permission",
+          "404": {
+            "description": "The column does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8535,8 +8904,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the task's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8545,11 +8917,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the task's workspace",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8620,7 +8989,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8634,6 +9003,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8687,7 +9066,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8701,6 +9080,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8752,7 +9141,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown activity",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8775,7 +9164,7 @@
             }
           },
           "404": {
-            "description": "Comment not found",
+            "description": "The comment does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8823,7 +9212,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown activity",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8846,7 +9235,7 @@
             }
           },
           "404": {
-            "description": "Comment not found",
+            "description": "The comment does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8890,8 +9279,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the task's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8900,11 +9292,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the task's workspace",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8977,7 +9366,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown task",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8991,6 +9380,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9051,7 +9450,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown comment",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9074,7 +9473,7 @@
             }
           },
           "404": {
-            "description": "Comment not found",
+            "description": "The comment does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9113,16 +9512,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown comment, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -9137,7 +9526,7 @@
             }
           },
           "404": {
-            "description": "Comment not found",
+            "description": "The comment does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9181,8 +9570,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the task's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9191,11 +9583,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the task's workspace",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9236,8 +9625,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown entry, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the entry's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9246,11 +9638,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the entry's workspace",
+          "404": {
+            "description": "The time entry does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9318,7 +9707,7 @@
             }
           },
           "400": {
-            "description": "Invalid timestamps, or unknown entry",
+            "description": "Invalid timestamps",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9332,6 +9721,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The time entry does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9396,7 +9795,7 @@
             }
           },
           "400": {
-            "description": "Invalid timestamps, or unknown task",
+            "description": "Invalid timestamps",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9410,6 +9809,16 @@
           },
           "403": {
             "description": "No workspace access, or missing task:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9453,8 +9862,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the task's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9463,11 +9875,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the task's workspace",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9609,7 +10018,7 @@
             }
           },
           "404": {
-            "description": "Task not found",
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9650,8 +10059,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown label, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the label's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9660,11 +10072,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the label's workspace",
+          "404": {
+            "description": "The label does not exist or is on a task in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9726,7 +10135,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown label",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9739,7 +10148,17 @@
             "description": "Missing or invalid credentials"
           },
           "403": {
-            "description": "No workspace access, or missing label:update permission",
+            "description": "No workspace access, missing label:update permission, or a workspace label (which changes on every task using it) edited without project:access_all",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The label does not exist or is on a task in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9778,21 +10197,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown label, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
           "403": {
-            "description": "No workspace access, or missing label:delete permission",
+            "description": "No workspace access, missing label:delete permission, or a workspace label (removed from every task using it) deleted without project:access_all",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9802,7 +10211,7 @@
             }
           },
           "404": {
-            "description": "The label's task no longer exists",
+            "description": "The label or its task does not exist, or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9862,7 +10271,7 @@
             }
           },
           "400": {
-            "description": "Unknown label, or label and task belong to different workspaces",
+            "description": "The label and task belong to different workspaces",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9885,7 +10294,7 @@
             }
           },
           "404": {
-            "description": "Task not found",
+            "description": "The label or task does not exist, or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9925,7 +10334,7 @@
             }
           },
           "400": {
-            "description": "Unknown label, or label is not assigned to a task",
+            "description": "The label is not attached to a task",
             "content": {
               "text/plain": {
                 "schema": {
@@ -9948,7 +10357,7 @@
             }
           },
           "404": {
-            "description": "Task not found",
+            "description": "The label or its task does not exist, or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10073,6 +10482,16 @@
           },
           "401": {
             "description": "Missing or invalid credentials"
+          },
+          "404": {
+            "description": "The related task does not exist or is in a project the caller cannot access",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -10633,8 +11052,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing workspace:manage_settings",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10643,11 +11065,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No workspace access, or missing workspace:manage_settings",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10711,7 +11130,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10725,6 +11144,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10765,8 +11194,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10775,11 +11207,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10846,7 +11275,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10860,6 +11289,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10979,16 +11418,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -11003,7 +11432,7 @@
             }
           },
           "404": {
-            "description": "GitHub integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no GitHub integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11137,7 +11566,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11151,6 +11580,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11221,7 +11660,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11235,6 +11674,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11275,8 +11724,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11285,11 +11737,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11362,7 +11811,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11376,6 +11825,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11495,16 +11954,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -11519,7 +11968,7 @@
             }
           },
           "404": {
-            "description": "Gitea integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no Gitea integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11653,7 +12102,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11667,6 +12116,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11732,7 +12191,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11746,6 +12205,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11786,8 +12255,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11796,11 +12268,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11868,7 +12337,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11882,6 +12351,16 @@
           },
           "403": {
             "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12001,16 +12480,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -12025,7 +12494,7 @@
             }
           },
           "404": {
-            "description": "GitLab integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no GitLab integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12139,8 +12608,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12149,11 +12621,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12458,16 +12927,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -12482,7 +12941,7 @@
             }
           },
           "404": {
-            "description": "Webhook integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no Webhook integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12523,8 +12982,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12533,11 +12995,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12792,16 +13251,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -12816,7 +13265,7 @@
             }
           },
           "404": {
-            "description": "Discord integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no Discord integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12857,8 +13306,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12867,11 +13319,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13126,16 +13575,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -13150,7 +13589,7 @@
             }
           },
           "404": {
-            "description": "Mattermost integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no Mattermost integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13191,8 +13630,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13201,11 +13643,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13460,16 +13899,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -13484,7 +13913,7 @@
             }
           },
           "404": {
-            "description": "Slack integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no Slack integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13525,8 +13954,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13535,11 +13967,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13812,16 +14241,6 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -13836,7 +14255,7 @@
             }
           },
           "404": {
-            "description": "Telegram integration not found",
+            "description": "The project does not exist or the caller cannot access it, or it has no Telegram integration",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13880,8 +14299,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the task's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13890,11 +14312,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the task's workspace",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13957,7 +14376,7 @@
             }
           },
           "400": {
-            "description": "Invalid body",
+            "description": "Invalid body, or the two tasks belong to different workspaces",
             "content": {
               "text/plain": {
                 "schema": {
@@ -13980,7 +14399,7 @@
             }
           },
           "404": {
-            "description": "Source or target task not found",
+            "description": "The source or target task does not exist, or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14045,7 +14464,7 @@
             }
           },
           "404": {
-            "description": "Task relation not found, or its source task is gone",
+            "description": "The relation does not exist, or one of its tasks is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14089,8 +14508,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown task, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the task's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14099,11 +14521,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the task's workspace",
+          "404": {
+            "description": "The task does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14147,8 +14566,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown project, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14157,11 +14579,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No access to the project's workspace",
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14227,7 +14646,7 @@
             }
           },
           "400": {
-            "description": "Invalid body, or unknown project",
+            "description": "Invalid body",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14241,6 +14660,16 @@
           },
           "403": {
             "description": "No workspace access, or missing project:update permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The project does not exist or the caller cannot access it",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14281,8 +14710,11 @@
               }
             }
           },
-          "400": {
-            "description": "Unknown rule, or its workspace could not be determined",
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing project:update permission",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14291,11 +14723,8 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid credentials"
-          },
-          "403": {
-            "description": "No workspace access, or missing project:update permission",
+          "404": {
+            "description": "The workflow rule does not exist or is in a project the caller cannot access",
             "content": {
               "text/plain": {
                 "schema": {

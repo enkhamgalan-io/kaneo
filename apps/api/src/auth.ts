@@ -53,6 +53,10 @@ import { getGithubSsoOAuthCredentials } from "./utils/github-sso-env";
 import { isCloud } from "./utils/is-cloud";
 import { isDisposableEmail } from "./utils/is-disposable-email";
 import { isLocalSignInPath } from "./utils/is-local-sign-in-path";
+import {
+  clearProjectMemberships,
+  projectAccessChanged,
+} from "./utils/project-access";
 import { verifyTurnstile } from "./utils/verify-turnstile";
 
 config();
@@ -191,6 +195,28 @@ function trustedProxies(): string[] {
 function getDeviceAuthVerificationUri(): string {
   const base = clientUrl.replace(/\/$/, "");
   return `${base}/device`;
+}
+
+// Best effort: a failure here must not undo the membership change that
+// triggered it. Access checks require workspace membership anyway, so a stale
+// project membership grants nothing while the user is outside the workspace.
+async function forgetProjectMemberships(userId: string, workspaceId: string) {
+  try {
+    await clearProjectMemberships(userId, workspaceId);
+  } catch (error) {
+    console.error("Failed to clear project memberships:", error);
+  }
+}
+
+async function notifyProjectAccessChanged(
+  workspaceId: string,
+  userIds: string[],
+) {
+  try {
+    await projectAccessChanged(workspaceId, userIds);
+  } catch (error) {
+    console.error("Failed to announce a project access change:", error);
+  }
 }
 
 export const auth = betterAuth({
@@ -467,16 +493,43 @@ export const auth = betterAuth({
         },
         afterAddMember: async ({ member }) => {
           if (member?.organizationId) {
+            await forgetProjectMemberships(
+              member.userId,
+              member.organizationId,
+            );
             void syncWorkspaceSeats(member.organizationId).catch((error) => {
               console.error("Seat sync after member add failed:", error);
             });
           }
         },
+        afterAcceptInvitation: async ({ member }) => {
+          if (member?.organizationId) {
+            await forgetProjectMemberships(
+              member.userId,
+              member.organizationId,
+            );
+          }
+        },
         afterRemoveMember: async ({ member }) => {
           if (member?.organizationId) {
+            await forgetProjectMemberships(
+              member.userId,
+              member.organizationId,
+            );
+            await notifyProjectAccessChanged(member.organizationId, [
+              member.userId,
+            ]);
             void syncWorkspaceSeats(member.organizationId).catch((error) => {
               console.error("Seat sync after member remove failed:", error);
             });
+          }
+        },
+        // A new role can grant or take away project:access_all.
+        afterUpdateMemberRole: async ({ member }) => {
+          if (member?.organizationId) {
+            await notifyProjectAccessChanged(member.organizationId, [
+              member.userId,
+            ]);
           }
         },
       },
@@ -775,6 +828,61 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
+      // Leaving a workspace runs no organization hook, so it is handled here.
+      if (ctx.path === "/organization/leave") {
+        const left = ctx.context.returned as
+          | { userId?: string; organizationId?: string }
+          | undefined;
+        if (
+          !(left instanceof APIError) &&
+          left?.userId &&
+          left.organizationId
+        ) {
+          await forgetProjectMemberships(left.userId, left.organizationId);
+          await notifyProjectAccessChanged(left.organizationId, [left.userId]);
+        }
+      }
+
+      // Editing a role's permissions can grant or take away
+      // project:access_all for everyone who holds it.
+      if (ctx.path === "/organization/update-role") {
+        const updated = ctx.context.returned as
+          | { roleData?: { organizationId?: string } }
+          | undefined;
+        const workspaceId = !(updated instanceof APIError)
+          ? updated?.roleData?.organizationId
+          : undefined;
+        if (workspaceId) {
+          const members = await db
+            .select({ userId: schema.workspaceUserTable.userId })
+            .from(schema.workspaceUserTable)
+            .where(eq(schema.workspaceUserTable.workspaceId, workspaceId));
+          await notifyProjectAccessChanged(
+            workspaceId,
+            members.map((member) => member.userId),
+          );
+        }
+      }
+
+      // Instance admins reach every project in every workspace, so granting or
+      // removing that role changes what the user can open everywhere.
+      if (ctx.path === "/admin/set-role") {
+        const targetUserId = (ctx.body as { userId?: unknown } | undefined)
+          ?.userId;
+        if (
+          !(ctx.context.returned instanceof APIError) &&
+          typeof targetUserId === "string"
+        ) {
+          const memberships = await db
+            .select({ workspaceId: schema.workspaceUserTable.workspaceId })
+            .from(schema.workspaceUserTable)
+            .where(eq(schema.workspaceUserTable.userId, targetUserId));
+          for (const { workspaceId } of memberships) {
+            await notifyProjectAccessChanged(workspaceId, [targetUserId]);
+          }
+        }
+      }
+
       if (ctx.path.startsWith("/sign-up") || ctx.path.startsWith("/sign-in")) {
         const newSession = ctx.context.newSession;
         if (newSession) {

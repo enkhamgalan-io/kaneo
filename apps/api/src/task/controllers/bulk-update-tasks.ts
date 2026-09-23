@@ -191,7 +191,16 @@ async function bulkUpdateTasks({
       const assigneeId = value?.trim() || null;
 
       if (assigneeId) {
-        await assertAssignableUser(assigneeId, workspaceId);
+        // All or nothing: the assignee must be able to open every task whose
+        // assignee this changes, whichever project it is in.
+        const projectIds = new Set(
+          tasks
+            .filter((task) => task.userId !== assigneeId)
+            .map((task) => task.projectId),
+        );
+        for (const projectId of projectIds) {
+          await assertAssignableUser(assigneeId, projectId);
+        }
       }
 
       const newAssigneeName = assigneeId

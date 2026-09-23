@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     findExternalLink: vi.fn(),
     updateExternalLink: vi.fn(),
     publishEvent: vi.fn(),
+    userCanAccessProject: vi.fn(),
     taskFindFirst: vi.fn(),
     userFindFirst: vi.fn(),
     db: {
@@ -35,6 +36,11 @@ vi.mock("../../../../../apps/api/src/database", () => ({ default: mocks.db }));
 
 vi.mock("../../../../../apps/api/src/events", () => ({
   publishEvent: (...a: unknown[]) => mocks.publishEvent(...a),
+}));
+
+// Only someone who can reach the task's project may be assigned it.
+vi.mock("../../../../../apps/api/src/utils/project-access", () => ({
+  userCanAccessProject: (...a: unknown[]) => mocks.userCanAccessProject(...a),
 }));
 
 vi.mock(
@@ -69,6 +75,7 @@ const integration = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.userCanAccessProject.mockResolvedValue(true);
   mocks.updatedTasks.length = 0;
   mocks.findAllIntegrationsByGitlabProject.mockResolvedValue([integration]);
   mocks.findExternalLink.mockResolvedValue({

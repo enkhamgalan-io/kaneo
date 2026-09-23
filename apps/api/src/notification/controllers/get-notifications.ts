@@ -6,6 +6,7 @@ import {
   taskTable,
   workspaceTable,
 } from "../../database/schema";
+import { userCanAccessProject } from "../../utils/project-access";
 
 async function getNotifications(userId: string) {
   const rows = await db
@@ -28,8 +29,23 @@ async function getNotifications(userId: string) {
     .orderBy(desc(notificationTable.createdAt))
     .limit(50);
 
+  // A task's current project replaces the one stored with the notification
+  // only while the user can open it. A task moved into a project they cannot
+  // reach keeps pointing where it was, so its new location stays hidden.
+  const liveProjectIds = [
+    ...new Set(rows.flatMap((row) => (row.projectId ? [row.projectId] : []))),
+  ];
+  const reachable = new Set<string>();
+  await Promise.all(
+    liveProjectIds.map(async (projectId) => {
+      if (await userCanAccessProject(projectId, userId)) {
+        reachable.add(projectId);
+      }
+    }),
+  );
+
   return rows.map(({ notification, projectId, workspaceId }) => {
-    if (!projectId && !workspaceId) {
+    if (!projectId || !reachable.has(projectId)) {
       return notification;
     }
 

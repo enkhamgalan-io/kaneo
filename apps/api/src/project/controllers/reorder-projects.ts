@@ -1,11 +1,16 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import db from "../../database";
 import { projectTable } from "../../database/schema";
+import {
+  type ProjectScope,
+  visibleProjectFilter,
+} from "../../utils/project-access";
 
 async function reorderProjects(
   workspaceId: string,
   projects: Array<{ id: string; position: number }>,
+  scope: ProjectScope,
 ) {
   const ids = projects.map((project) => project.id);
   const uniqueIds = new Set(ids);
@@ -29,7 +34,11 @@ async function reorderProjects(
     // ordering without being sent. Ordering here defines each project's current
     // rank, which is what the renumbering below pins them to.
     const existing = await tx
-      .select({ id: projectTable.id, position: projectTable.position })
+      .select({
+        id: projectTable.id,
+        position: projectTable.position,
+        visible: sql<boolean>`${visibleProjectFilter(scope, projectTable.id) ?? sql`true`}`,
+      })
       .from(projectTable)
       .where(eq(projectTable.workspaceId, workspaceId))
       .orderBy(
@@ -39,8 +48,15 @@ async function reorderProjects(
       );
 
     // Verify ownership of the whole batch before writing anything, so a
-    // smuggled foreign id cannot leave the workspace half-renumbered.
-    const ownedIds = new Set(existing.map((project) => project.id));
+    // smuggled foreign id cannot leave the workspace half-renumbered. A caller
+    // limited to their own projects can only move those, and a hidden id gets
+    // the same answer as a foreign or missing one; the others keep their slots
+    // like any project the payload omits.
+    const ownedIds = new Set(
+      existing
+        .filter((project) => project.visible)
+        .map((project) => project.id),
+    );
     const foreignId = ids.find((id) => !ownedIds.has(id));
 
     if (foreignId) {
@@ -84,14 +100,22 @@ async function reorderProjects(
         .where(eq(projectTable.id, id));
     }
 
-    return tx.query.projectTable.findMany({
-      where: eq(projectTable.workspaceId, workspaceId),
-      orderBy: [
+    // The select builder rather than tx.query, whose table alias breaks the
+    // visibility filter's correlated reference.
+    return tx
+      .select()
+      .from(projectTable)
+      .where(
+        and(
+          eq(projectTable.workspaceId, workspaceId),
+          visibleProjectFilter(scope, projectTable.id),
+        ),
+      )
+      .orderBy(
         asc(projectTable.position),
         asc(projectTable.createdAt),
         asc(projectTable.id),
-      ],
-    });
+      );
   });
 }
 

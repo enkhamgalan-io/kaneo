@@ -339,6 +339,47 @@ export const projectTable = pgTable(
   ],
 );
 
+// Who can see a project. Viewers and Members reach only projects they belong
+// to; a role with project:access_all (Owner and Admin by default) reaches
+// every project in the workspace without a row here.
+export const projectMemberTable = pgTable(
+  "project_member",
+  {
+    id: text("id")
+      .$defaultFn(() => createId())
+      .primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    projectId: text("project_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => userTable.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    // Through (workspace, project), so a row can never point at a project in
+    // another workspace. Named explicitly: the generated name would pass
+    // Postgres' 63-character limit.
+    foreignKey({
+      name: "project_member_project_fk",
+      columns: [table.workspaceId, table.projectId],
+      foreignColumns: [projectTable.workspaceId, projectTable.id],
+    })
+      .onDelete("cascade")
+      .onUpdate("cascade"),
+    unique("project_member_project_user_unique").on(
+      table.projectId,
+      table.userId,
+    ),
+    index("project_member_userId_workspaceId_idx").on(
+      table.userId,
+      table.workspaceId,
+    ),
+  ],
+);
+
 export const columnTable = pgTable(
   "column",
   {

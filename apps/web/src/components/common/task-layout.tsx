@@ -15,6 +15,7 @@ import { shortcuts } from "@/constants/shortcuts";
 import useGetProject from "@/hooks/queries/project/use-get-project";
 import useGetTask from "@/hooks/queries/task/use-get-task";
 import { useProjectWebSocket } from "@/hooks/use-project-websocket";
+import { isNotFoundError } from "@/lib/http-error";
 
 type TaskLayoutProps = {
   taskId: string;
@@ -35,10 +36,15 @@ export default function TaskLayout({
 }: TaskLayoutProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data: project } = useGetProject({ id: projectId, workspaceId });
+  const { data: project, error: projectError } = useGetProject({
+    id: projectId,
+    workspaceId,
+  });
   const { data: task } = useGetTask(taskId);
 
-  useProjectWebSocket(projectId);
+  // Off while the project cannot be opened, so the socket reconnects once
+  // access comes back (a revoked socket does not retry on its own).
+  useProjectWebSocket(isNotFoundError(projectError) ? "" : projectId);
 
   const taskLabel =
     project?.slug && task?.number != null

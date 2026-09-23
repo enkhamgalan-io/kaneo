@@ -133,6 +133,7 @@ export async function authenticateApiRequest(c: Context): Promise<void> {
 export async function resolveAssetBearerOrCookie(c: Context): Promise<{
   userId: string;
   apiKeyId?: string;
+  apiKeyPermissions?: Record<string, string[]> | null;
 }> {
   const { token, malformed } = parseBearerToken(c.req.header("Authorization"));
   if (malformed) {
@@ -146,6 +147,7 @@ export async function resolveAssetBearerOrCookie(c: Context): Promise<{
       return {
         userId: apiKeyResult.key.userId,
         apiKeyId: apiKeyResult.key.id,
+        apiKeyPermissions: apiKeyResult.key.permissions,
       };
     }
     throw new HTTPException(401, { message: "Unauthorized" });
@@ -157,6 +159,7 @@ export async function resolveAssetBearerOrCookie(c: Context): Promise<{
       return {
         userId: apiKeyResult.key.userId,
         apiKeyId: apiKeyResult.key.id,
+        apiKeyPermissions: apiKeyResult.key.permissions,
       };
     }
     const sessionResult = await getSessionFromBearerOnlyHeaders(c);

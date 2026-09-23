@@ -18,7 +18,7 @@ import { createGitlabClient } from "../utils/gitlab-api";
 import { addLabelsToIssueGitlab } from "../utils/labels";
 import { resolveTargetStatus } from "../utils/resolve-column";
 import {
-  findKaneoUserByEmail,
+  findAssignableKaneoUser,
   resolveGitlabAssigneeEmail,
 } from "../utils/user-matcher";
 import { baseUrlFromProjectWebUrl } from "../utils/webhook-repo";
@@ -135,7 +135,7 @@ export async function handleGitlabIssueOpened(
         config.repositoryPath,
       );
       if (email) {
-        const kaneoUser = await findKaneoUserByEmail(email);
+        const kaneoUser = await findAssignableKaneoUser(email, projectId);
         if (kaneoUser) {
           assignedUserId = kaneoUser.id;
         }

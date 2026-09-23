@@ -66,14 +66,15 @@ import { migrateNotificationPreferencesSchema } from "./utils/migrate-notificati
 import { migrateSessionColumn } from "./utils/migrate-session-column";
 import { migrateWorkspaceUserEmail } from "./utils/migrate-workspace-user-email";
 import { normalizeApiServerUrl } from "./utils/openapi-spec";
+import { authorizeProjectAccess } from "./utils/project-access";
 import { seedDefaultWorkspaceRoles } from "./utils/seed-default-workspace-roles";
-import { validateWorkspaceAccess } from "./utils/validate-workspace-access";
 import workflowRule from "./workflow-rule";
 import workspace from "./workspace";
 import {
   addConnection,
   addUserConnection,
   initializeWebSocketAdapter,
+  projectAccessEpoch,
   removeConnection,
   removeUserConnection,
   shutdownWebSocketAdapter,
@@ -300,7 +301,7 @@ export function createApp() {
           objectKey: schema.assetTable.objectKey,
           mimeType: schema.assetTable.mimeType,
           filename: schema.assetTable.filename,
-          workspaceId: schema.assetTable.workspaceId,
+          projectId: schema.assetTable.projectId,
           isPublic: schema.projectTable.isPublic,
         })
         .from(schema.assetTable)
@@ -704,19 +705,18 @@ export function createApp() {
       }
 
       const userId = c.get("userId");
+      const apiKey = c.get("apiKey");
+      // Taken before the check, so an access change that lands before the
+      // socket opens makes it recheck itself.
+      const accessEpoch = projectAccessEpoch(userId);
 
       if (projectId) {
-        const [project] = await db
-          .select({ workspaceId: schema.projectTable.workspaceId })
-          .from(schema.projectTable)
-          .where(eq(schema.projectTable.id, projectId))
-          .limit(1);
-
-        if (!project) {
-          throw new HTTPException(401, { message: "Unauthorized" });
-        }
-
-        await validateWorkspaceAccess(userId, project.workspaceId);
+        await authorizeProjectAccess({
+          userId,
+          projectId,
+          apiKeyId: apiKey?.id,
+          apiKeyPermissions: apiKey?.permissions,
+        });
       }
 
       const windowId = c.req.query("windowId");
@@ -726,7 +726,11 @@ export function createApp() {
       return {
         onOpen(_evt, ws) {
           if (projectId) {
-            conn = addConnection(projectId, ws, userId, initiatorId);
+            conn = addConnection(projectId, ws, userId, initiatorId, {
+              apiKeyId: apiKey?.id,
+              apiKeyPermissions: apiKey?.permissions,
+              epoch: accessEpoch,
+            });
           }
         },
         onMessage(evt) {

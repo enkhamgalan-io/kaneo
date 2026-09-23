@@ -17,6 +17,8 @@ const CAPABILITIES = {
   createProjects: { project: ["create"] },
   updateProjects: { project: ["update"] },
   deleteProjects: { project: ["delete"] },
+  // Every project in the workspace, not only the ones the user was added to.
+  accessAllProjects: { project: ["access_all"] },
   readTasks: { task: ["read"] },
   updateTasks: { task: ["update"] },
   createTasks: { task: ["create"] },
@@ -45,6 +47,10 @@ function emptyCapabilityMap(): CapabilityMap {
 }
 
 export function useWorkspacePermission() {
+  const { data: session } = authClient.useSession();
+  // Instance admins reach every project whatever their workspace role, as the
+  // API grants them; better-auth's role check does not know about that.
+  const isInstanceAdmin = session?.user?.role === "admin";
   const { data: activeWorkspace } = useActiveWorkspace();
   const {
     data: activeMember,
@@ -100,6 +106,7 @@ export function useWorkspacePermission() {
       canCreateProjects: () => can.createProjects,
       canUpdateProjects: () => can.updateProjects,
       canDeleteProjects: () => can.deleteProjects,
+      canAccessAllProjects: () => isInstanceAdmin || can.accessAllProjects,
       canReadTasks: () => can.readTasks,
       canUpdateTasks: () => can.updateTasks,
       canCreateTasks: () => can.createTasks,
@@ -128,7 +135,7 @@ export function useWorkspacePermission() {
         }
       },
     };
-  }, [can, workspaceId]);
+  }, [can, workspaceId, isInstanceAdmin]);
 
   return {
     ...helpers,

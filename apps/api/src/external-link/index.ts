@@ -24,10 +24,10 @@ const getExternalLinksByTaskRoute = createRoute({
   request: { params: taskIdParam },
   responses: {
     200: jsonResponse("External links for the task", externalLinkListSchema),
-    400: errorResponse(
-      "Unknown task, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the task's workspace"),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 

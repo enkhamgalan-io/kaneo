@@ -3,6 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import CreateTaskModal from "./create-task-modal";
 
 const useLocation = vi.fn();
+// Who can be assigned in each project: project-2 has only Ada.
+const assignableByProject: Record<string, string[]> = {
+  "project-1": ["user-ada", "user-bob"],
+  "project-2": ["user-ada"],
+};
+const workspaceMembers = [
+  { userId: "user-ada", user: { id: "user-ada", name: "Ada", email: "" } },
+  { userId: "user-bob", user: { id: "user-bob", name: "Bob", email: "" } },
+];
 const createTask = vi.fn(async (input: Record<string, unknown>) => ({
   id: "task-1",
   title: input.title,
@@ -52,9 +61,23 @@ vi.mock("@/hooks/queries/workspace/use-active-workspace", () => ({
 vi.mock(
   "@/hooks/queries/workspace-users/use-get-active-workspace-users",
   () => ({
-    useGetActiveWorkspaceUsers: () => ({ data: { members: [] } }),
+    useGetActiveWorkspaceUsers: () => ({
+      data: { members: workspaceMembers },
+    }),
   }),
 );
+
+vi.mock("@/hooks/queries/project/use-assignable-users", () => ({
+  useAssignableUsers: (projectId: string | undefined) => ({
+    data: projectId
+      ? {
+          members: workspaceMembers.filter((member) =>
+            assignableByProject[projectId]?.includes(member.userId),
+          ),
+        }
+      : undefined,
+  }),
+}));
 
 vi.mock("@/hooks/use-workspace-permission", () => ({
   useWorkspacePermission: () => ({
@@ -191,6 +214,46 @@ describe("CreateTaskModal", () => {
         }),
       );
     });
+  });
+
+  it("blocks creating for a pre-assigned member who cannot be assigned in the chosen project", async () => {
+    useLocation.mockReturnValue({
+      pathname: "/dashboard/workspace/workspace-1",
+    });
+
+    render(
+      <CreateTaskModal open onClose={vi.fn()} defaultAssigneeId="user-bob" />,
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        "common:modals.createTask.taskTitlePlaceholder",
+      ),
+      { target: { value: "For Bob" } },
+    );
+    fireEvent.click(screen.getByText("common:modals.createTask.selectProject"));
+    fireEvent.click(await screen.findByText("Beta"));
+
+    expect(
+      await screen.findByText("common:modals.createTask.assigneeNotInProject"),
+    ).toBeTruthy();
+    const submit = screen.getByText("common:modals.createTask.createButton");
+    expect(submit.closest("button")).toBeDisabled();
+    // The keyboard shortcut is blocked too.
+    fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
+    fireEvent.submit(document.querySelector("form") as HTMLFormElement);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(createTask).not.toHaveBeenCalled();
+
+    // The picker stays open after a choice.
+    fireEvent.click(screen.getByText("Alpha"));
+
+    await vi.waitFor(() => {
+      expect(
+        screen.queryByText("common:modals.createTask.assigneeNotInProject"),
+      ).toBeNull();
+    });
+    expect(submit.closest("button")).not.toBeDisabled();
   });
 
   it("hides the picker when a project is in scope from the route", () => {

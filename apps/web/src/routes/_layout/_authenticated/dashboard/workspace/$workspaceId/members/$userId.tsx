@@ -93,10 +93,13 @@ function RouteComponent() {
   const queryClient = useQueryClient();
   const {
     canReadTasks,
+    canAccessAllProjects,
     isCheckingPermissions,
     isLoadingMember,
     isMemberError,
   } = useWorkspacePermission();
+  // The summary and views cover only projects the viewer can open.
+  const seesOwnProjectsOnly = !isCheckingPermissions && !canAccessAllProjects();
   const canViewTasks = Boolean(canReadTasks());
   const { data, isPending, error } = useGetMemberTasks(workspaceId, userId, {
     enabled: canViewTasks,
@@ -392,6 +395,11 @@ function RouteComponent() {
               refreshSummaryIfStale,
             }}
           >
+            {seesOwnProjectsOnly && (
+              <p className="border-b border-border/80 px-4 py-2 text-xs text-muted-foreground">
+                {t("team:memberTasks.ownProjectsOnly")}
+              </p>
+            )}
             <Outlet />
           </MemberViewProvider>
         ) : (

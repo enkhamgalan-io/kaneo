@@ -224,10 +224,18 @@ export default function TaskRelations({
     deleteRelation.mutate(relationId);
   };
 
-  const handleNavigateToTask = (linkedTaskId: string) => {
+  // A linked task can sit in another project; it opens under its own.
+  const handleNavigateToTask = (linkedTask: {
+    id: string;
+    projectId: string;
+  }) => {
     navigate({
       to: "/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId",
-      params: { workspaceId, projectId, taskId: linkedTaskId },
+      params: {
+        workspaceId,
+        projectId: linkedTask.projectId,
+        taskId: linkedTask.id,
+      },
     });
   };
 
@@ -331,7 +339,7 @@ export default function TaskRelations({
                           <button
                             type="button"
                             className="flex-1 min-w-0 text-left outline-none"
-                            onClick={() => handleNavigateToTask(item.task.id)}
+                            onClick={() => handleNavigateToTask(item.task)}
                           >
                             <span
                               className={`text-sm truncate block ${finalStatusSlugs.has(item.task.status) ? "line-through text-muted-foreground" : "text-foreground/90"}`}
@@ -375,7 +383,7 @@ export default function TaskRelations({
 
                       <ContextMenuContent className="w-40">
                         <ContextMenuItem
-                          onClick={() => handleNavigateToTask(item.task.id)}
+                          onClick={() => handleNavigateToTask(item.task)}
                         >
                           <span>{t("tasks:relations.openTask")}</span>
                         </ContextMenuItem>

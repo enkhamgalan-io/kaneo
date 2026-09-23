@@ -83,6 +83,11 @@ const PERMISSION_LABELS: Record<
     label: "View projects",
     description: "View projects and their details.",
   },
+  "project:access_all": {
+    label: "Access all projects",
+    description:
+      "Open every project in the workspace. Without it, people only open the projects they are added to.",
+  },
   "project:update": {
     label: "Edit projects",
     description: "Update project name, icon, description, and settings.",

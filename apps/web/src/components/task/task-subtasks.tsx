@@ -222,9 +222,10 @@ export default function TaskSubtasks({
             e.preventDefault();
             navigate({
               to: "/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId",
+              // A subtask moved elsewhere opens under its own project.
               params: {
                 workspaceId,
-                projectId,
+                projectId: subtasks[focusedIndex].task.projectId,
                 taskId: subtasks[focusedIndex].task.id,
               },
             });
@@ -254,7 +255,6 @@ export default function TaskSubtasks({
     clearSelection,
     navigate,
     workspaceId,
-    projectId,
     toggleSelection,
   ]);
 
@@ -387,7 +387,7 @@ export default function TaskSubtasks({
                         to: "/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId",
                         params: {
                           workspaceId,
-                          projectId,
+                          projectId: subtask.task.projectId,
                           taskId: subtask.task.id,
                         },
                       })

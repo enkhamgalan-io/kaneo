@@ -51,6 +51,7 @@ import useCreateTask from "@/hooks/mutations/task/use-create-task";
 import { useDeleteTask } from "@/hooks/mutations/task/use-delete-task";
 import { useUpdateTask } from "@/hooks/mutations/task/use-update-task";
 import useGetLabelsByWorkspace from "@/hooks/queries/label/use-get-labels-by-workspace";
+import { useAssignableUsers } from "@/hooks/queries/project/use-assignable-users";
 import useGetProjects from "@/hooks/queries/project/use-get-projects";
 import useActiveWorkspace from "@/hooks/queries/workspace/use-active-workspace";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
@@ -228,18 +229,31 @@ function CreateTaskModal({
     location.pathname.match(/\/project\/([^/]+)/)?.[1] ?? null;
   const explicitProjectId = projectId || routeProjectId || "";
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const { data: workspaceProjects } = useGetProjects({
+    workspaceId: workspace?.id || "",
+  });
+  // The last opened project, while the user can still reach it: after their
+  // access is removed it drops out of the list and stops being a default.
+  const storeProjectId =
+    project?.id &&
+    (workspaceProjects === undefined ||
+      workspaceProjects.some((p) => p.id === project.id))
+      ? project.id
+      : undefined;
   // With a restricted picker the loaded project is not a safe fallback: it may
   // be one the caller excluded. A single allowed project is picked outright.
   const fallbackProjectId = allowedProjectIds
     ? allowedProjectIds.length === 1
       ? allowedProjectIds[0]
       : undefined
-    : project?.id;
+    : storeProjectId;
   const resolvedProjectId =
     explicitProjectId || selectedProjectId || fallbackProjectId || "";
-  const { data: workspaceProjects } = useGetProjects({
-    workspaceId: workspace?.id || "",
-  });
+  // Only people who can reach the chosen project can be assigned there.
+  // Fetched once the modal opens: it stays mounted, closed, on every board.
+  const { data: assignableUsers } = useAssignableUsers(
+    open && resolvedProjectId ? resolvedProjectId : undefined,
+  );
   const resolvedProject = explicitProjectId
     ? project
     : (workspaceProjects?.find((p) => p.id === resolvedProjectId) ?? null);
@@ -439,7 +453,14 @@ function CreateTaskModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !resolvedProjectId || !workspace?.id) return;
+    if (
+      !title.trim() ||
+      !resolvedProjectId ||
+      !workspace?.id ||
+      isAssigneeBlocking
+    ) {
+      return;
+    }
 
     try {
       const taskStatus = status ?? "to-do";
@@ -543,6 +564,16 @@ function CreateTaskModal({
   const selectedUser = workspaceUsers?.members?.find(
     (u) => u.userId === assigneeId,
   );
+  const isAssigneeOutsideProject =
+    Boolean(assigneeId) &&
+    assignableUsers !== undefined &&
+    !assignableUsers.members.some((member) => member.userId === assigneeId);
+  // Until the chosen project's people load, an assignee cannot be confirmed.
+  const isAssigneeUnconfirmed =
+    Boolean(assigneeId) &&
+    Boolean(resolvedProjectId) &&
+    assignableUsers === undefined;
+  const isAssigneeBlocking = isAssigneeOutsideProject || isAssigneeUnconfirmed;
 
   useEffect(() => {
     if (labelsOpen && labelsStep === "select" && searchInputRef.current) {
@@ -556,7 +587,12 @@ function CreateTaskModal({
 
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
-        if (title.trim() && resolvedProjectId && workspace?.id) {
+        if (
+          title.trim() &&
+          resolvedProjectId &&
+          workspace?.id &&
+          !isAssigneeBlocking
+        ) {
           const form = document.querySelector("form");
           if (form) {
             form.dispatchEvent(
@@ -566,7 +602,14 @@ function CreateTaskModal({
         }
       }
     },
-    [open, discardConfirmationOpen, title, resolvedProjectId, workspace?.id],
+    [
+      open,
+      discardConfirmationOpen,
+      title,
+      resolvedProjectId,
+      workspace?.id,
+      isAssigneeBlocking,
+    ],
   );
 
   useEffect(() => {
@@ -704,6 +747,7 @@ function CreateTaskModal({
                   "common:modals.createTask.descriptionPlaceholder",
                 )}
                 taskId={draftTask?.id}
+                projectId={resolvedProjectId || undefined}
                 ensureTaskId={ensureDraftTask}
               />
             </div>
@@ -919,7 +963,7 @@ function CreateTaskModal({
                       </span>
                       {!assigneeId && <Check className="ml-auto h-4 w-4" />}
                     </button>
-                    {workspaceUsers?.members?.map((member) => (
+                    {assignableUsers?.members.map((member) => (
                       <button
                         key={member.userId}
                         type="button"
@@ -1128,6 +1172,16 @@ function CreateTaskModal({
             </div>
           </div>
 
+          {isAssigneeOutsideProject && (
+            <p
+              className="flex-shrink-0 px-6 pb-2 text-xs text-destructive-foreground"
+              role="alert"
+            >
+              {t("common:modals.createTask.assigneeNotInProject", {
+                name: selectedUser?.user?.name ?? "",
+              })}
+            </p>
+          )}
           <DialogFooter className="flex-shrink-0 border-t border-border bg-background px-6 py-4">
             <div className="flex items-center gap-3 mr-auto">
               <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
@@ -1152,7 +1206,7 @@ function CreateTaskModal({
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim()}
+              disabled={!title.trim() || isAssigneeBlocking}
               size="sm"
               className="disabled:opacity-50"
             >

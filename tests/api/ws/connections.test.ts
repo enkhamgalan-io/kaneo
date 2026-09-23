@@ -53,6 +53,7 @@ describe("addConnection / removeConnection", () => {
       ws,
       userId: "user-1",
       initiatorId: "init-1",
+      access: {},
     });
   });
 

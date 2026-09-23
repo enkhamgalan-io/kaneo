@@ -11,6 +11,10 @@ export function getWsUrl(projectId: string) {
 }
 
 const MAX_RETRIES = 5;
+
+// The server closes a project socket with this code when the user can no
+// longer reach the project. Reconnecting would only be refused.
+export const PROJECT_ACCESS_REVOKED_CLOSE_CODE = 4403;
 const BASE_DELAY = 1000; // 1 second
 
 // Cloudflare closes idle WebSocket connections after 100 seconds of no traffic.
@@ -56,6 +60,12 @@ export function useProjectWebSocket(projectId: string) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          if (message.type === "PROJECT_MEMBERS_UPDATED") {
+            // Who can be assigned in the project changed.
+            queryClient.invalidateQueries({
+              queryKey: ["project-members", message.projectId],
+            });
+          }
           if (
             message.type === "TASK_UPDATED" ||
             message.type === "TASK_CREATED" ||
@@ -117,9 +127,16 @@ export function useProjectWebSocket(projectId: string) {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         clearPing();
         wsRef.current = null;
+
+        if (event.code === PROJECT_ACCESS_REVOKED_CLOSE_CODE) {
+          // Refetching the project turns the page into its not-available
+          // state and drops it from the project lists.
+          void queryClient.invalidateQueries({ queryKey: ["projects"] });
+          return;
+        }
 
         if (retriesRef.current < MAX_RETRIES) {
           const delay = BASE_DELAY * 2 ** retriesRef.current; // 1s, 2s, 4s, 8s, 16s

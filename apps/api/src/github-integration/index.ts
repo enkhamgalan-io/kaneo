@@ -3,7 +3,6 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import db from "../database";
 import { integrationTable } from "../database/schema";
-import { scopeToProjectFromBody } from "../integrations/middleware";
 import { projectIdBody, projectIdParam } from "../integrations/schema";
 import {
   apiRouter,
@@ -70,11 +69,11 @@ const listRepositoriesRoute = createRoute({
       "Repositories reachable through the installed App",
       githubRepositoryListSchema,
     ),
-    400: errorResponse(
-      "Unknown project, or its workspace could not be determined",
-    ),
     403: errorResponse(
       "No workspace access, or missing workspace:manage_settings",
+    ),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it",
     ),
   },
 });
@@ -96,9 +95,12 @@ const verifyRoute = createRoute({
   },
   responses: {
     200: jsonResponse("Verification result", verificationResultSchema),
-    400: errorResponse("Invalid body, or unknown project"),
+    400: errorResponse("Invalid body"),
     403: errorResponse(
       "No workspace access, or missing workspace:manage_settings",
+    ),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it",
     ),
   },
 });
@@ -118,10 +120,10 @@ const getIntegrationRoute = createRoute({
       "GitHub integration details, or null",
       githubIntegrationSchema.nullable(),
     ),
-    400: errorResponse(
-      "Unknown project, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the project's workspace"),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it",
+    ),
   },
 });
 
@@ -142,9 +144,12 @@ const createIntegrationRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The stored integration", createdGithubIntegrationSchema),
-    400: errorResponse("Invalid body, or unknown project"),
+    400: errorResponse("Invalid body"),
     403: errorResponse(
       "No workspace access, or missing workspace:manage_settings",
+    ),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it",
     ),
   },
 });
@@ -189,13 +194,12 @@ const deleteIntegrationRoute = createRoute({
   request: { params: projectIdParam },
   responses: {
     200: jsonResponse("The integration was removed", deleteResultSchema),
-    400: errorResponse(
-      "Unknown project, or its workspace could not be determined",
-    ),
     403: errorResponse(
       "No workspace access, or missing workspace:manage_settings",
     ),
-    404: errorResponse("GitHub integration not found"),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it, or it has no GitHub integration",
+    ),
   },
 });
 
@@ -208,7 +212,7 @@ const importIssuesRoute = createRoute({
   description:
     "Import the linked repository's issues as tasks. Issues that already have a task are skipped.",
   middleware: [
-    scopeToProjectFromBody,
+    workspaceAccess.fromProject("projectId"),
     requireWorkspacePermission({ task: ["create"] }),
   ] as const,
   request: {

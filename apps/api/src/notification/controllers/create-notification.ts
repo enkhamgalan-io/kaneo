@@ -1,8 +1,27 @@
 import { createId } from "@paralleldrive/cuid2";
+import { eq } from "drizzle-orm";
 import db from "../../database";
-import { notificationTable } from "../../database/schema";
+import { notificationTable, taskTable } from "../../database/schema";
 import { publishEvent } from "../../events";
 import { deliverNotification } from "../../notification-preferences/delivery";
+import { userCanAccessProject } from "../../utils/project-access";
+
+// The project of a task notification's task, or null when the task is gone.
+async function taskProjectId(taskId: string) {
+  const [task] = await db
+    .select({ projectId: taskTable.projectId })
+    .from(taskTable)
+    .where(eq(taskTable.id, taskId))
+    .limit(1);
+  return task?.projectId ?? null;
+}
+
+// Whether the user can open the task a notification points at. A task that no
+// longer exists has nothing to reveal, so it does not block the notification.
+async function canReceiveTaskNotification(userId: string, taskId: string) {
+  const projectId = await taskProjectId(taskId);
+  return projectId === null || userCanAccessProject(projectId, userId);
+}
 
 async function createNotification({
   userId,
@@ -31,6 +50,17 @@ async function createNotification({
           : type === "due_date_reminder" || type === "task_overdue"
             ? "dueDateReminderEnabled"
             : null;
+
+  // Every task notification (assignment, status, comment, mention, reminder)
+  // passes through here, so this is the one place that keeps them from
+  // reaching someone who cannot open the task.
+  if (
+    resourceType === "task" &&
+    resourceId &&
+    !(await canReceiveTaskNotification(userId, resourceId))
+  ) {
+    return null;
+  }
 
   if (preferenceKey) {
     const preference = await db.query.userNotificationPreferenceTable.findFirst(

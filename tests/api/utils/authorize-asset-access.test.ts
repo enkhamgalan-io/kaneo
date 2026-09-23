@@ -5,8 +5,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { state } = vi.hoisted(() => ({
   state: {
     resolveCalls: 0,
-    validateCalls: [] as { userId: string; workspaceId: string }[],
-    caller: "anonymous" as "anonymous" | "member" | "outsider",
+    authorizeCalls: [] as {
+      userId: string;
+      projectId: string;
+      apiKeyId?: string;
+      apiKeyPermissions?: Record<string, string[]> | null;
+      notFoundMessage?: string;
+    }[],
+    caller: "anonymous" as
+      | "anonymous"
+      | "member"
+      | "outsider"
+      | "hidden"
+      | "apiKey",
   },
 }));
 
@@ -18,18 +29,31 @@ vi.mock("../../../apps/api/src/utils/authenticate-api-request", () => ({
     if (state.caller === "anonymous") {
       throw new HTTPException(401, { message: "Unauthorized" });
     }
+    if (state.caller === "apiKey") {
+      return {
+        userId: "user-member",
+        apiKeyId: "key-1",
+        apiKeyPermissions: { task: ["read"] },
+      };
+    }
     return { userId: `user-${state.caller}` };
   },
 }));
 
-vi.mock("../../../apps/api/src/utils/validate-workspace-access", () => ({
-  validateWorkspaceAccess: async (userId: string, workspaceId: string) => {
-    state.validateCalls.push({ userId, workspaceId });
-    if (userId !== "user-member") {
+// Mirrors authorizeProjectAccess: 403 outside the workspace, 404 for a project
+// in the workspace the caller cannot reach.
+vi.mock("../../../apps/api/src/utils/project-access", () => ({
+  authorizeProjectAccess: async (input: (typeof state.authorizeCalls)[0]) => {
+    state.authorizeCalls.push(input);
+    if (input.userId === "user-outsider") {
       throw new HTTPException(403, {
         message: "You don't have access to this workspace",
       });
     }
+    if (input.userId === "user-hidden") {
+      throw new HTTPException(404, { message: input.notFoundMessage });
+    }
+    return { workspaceId: "workspace-1" };
   },
 }));
 
@@ -51,14 +75,14 @@ async function statusOf(promise: Promise<void>) {
 describe("authorizeAssetAccess", () => {
   beforeEach(() => {
     state.resolveCalls = 0;
-    state.validateCalls = [];
+    state.authorizeCalls = [];
     state.caller = "anonymous";
   });
 
   it("allows an anonymous caller to read an asset of a public project", async () => {
     const status = await statusOf(
       authorizeAssetAccess(context, {
-        workspaceId: "workspace-1",
+        projectId: "project-1",
         isPublic: true,
       }),
     );
@@ -72,7 +96,7 @@ describe("authorizeAssetAccess", () => {
   it("rejects an anonymous caller for a private asset", async () => {
     const status = await statusOf(
       authorizeAssetAccess(context, {
-        workspaceId: "workspace-1",
+        projectId: "project-1",
         isPublic: false,
       }),
     );
@@ -85,7 +109,7 @@ describe("authorizeAssetAccess", () => {
 
     const status = await statusOf(
       authorizeAssetAccess(context, {
-        workspaceId: "workspace-1",
+        projectId: "project-1",
         isPublic: null,
       }),
     );
@@ -98,14 +122,52 @@ describe("authorizeAssetAccess", () => {
 
     const status = await statusOf(
       authorizeAssetAccess(context, {
-        workspaceId: "workspace-1",
+        projectId: "project-1",
         isPublic: false,
       }),
     );
 
     expect(status).toBe(200);
-    expect(state.validateCalls).toEqual([
-      { userId: "user-member", workspaceId: "workspace-1" },
+    expect(state.authorizeCalls).toEqual([
+      {
+        userId: "user-member",
+        projectId: "project-1",
+        apiKeyId: undefined,
+        apiKeyPermissions: undefined,
+        notFoundMessage: "Asset not found",
+      },
+    ]);
+  });
+
+  it("hides a private asset of a project the member cannot reach", async () => {
+    state.caller = "hidden";
+
+    const status = await statusOf(
+      authorizeAssetAccess(context, {
+        projectId: "project-1",
+        isPublic: false,
+      }),
+    );
+
+    expect(status).toBe(404);
+  });
+
+  it("passes an API key's scopes to the project check", async () => {
+    state.caller = "apiKey";
+
+    await authorizeAssetAccess(context, {
+      projectId: "project-1",
+      isPublic: false,
+    });
+
+    expect(state.authorizeCalls).toEqual([
+      {
+        userId: "user-member",
+        projectId: "project-1",
+        apiKeyId: "key-1",
+        apiKeyPermissions: { task: ["read"] },
+        notFoundMessage: "Asset not found",
+      },
     ]);
   });
 });

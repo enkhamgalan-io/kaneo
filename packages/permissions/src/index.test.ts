@@ -16,6 +16,7 @@ describe("@kaneo/permissions statement surface", () => {
     expect(statement.project).toEqual([
       "create",
       "read",
+      "access_all",
       "update",
       "delete",
       "share",
@@ -44,6 +45,23 @@ describe("@kaneo/permissions statement surface", () => {
   it("returns the same `ac` instance for downstream consumers", () => {
     expect(ac).toBeDefined();
     expect(typeof ac.newRole).toBe("function");
+  });
+});
+
+describe("project access", () => {
+  // Owner and Admin reach every project; Viewer and Member only the projects
+  // they are members of.
+  it("grants access_all to owner and admin only", () => {
+    expect(owner.statements.project).toContain("access_all");
+    expect(admin.statements.project).toContain("access_all");
+    expect(member.statements.project).not.toContain("access_all");
+    expect(viewer.statements.project).not.toContain("access_all");
+  });
+
+  it("seeds the same split into new workspaces' role rows", () => {
+    expect(defaultRolePayloads.admin.project).toContain("access_all");
+    expect(defaultRolePayloads.member.project).not.toContain("access_all");
+    expect(defaultRolePayloads.viewer.project).not.toContain("access_all");
   });
 });
 

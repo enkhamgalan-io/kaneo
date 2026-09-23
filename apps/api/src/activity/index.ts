@@ -5,6 +5,7 @@ import {
   errorResponse,
   jsonResponse,
 } from "../openapi";
+import { getProjectScope } from "../utils/project-access";
 import { requireWorkspacePermission } from "../utils/require-workspace-permission";
 import { workspaceAccess } from "../utils/workspace-access-middleware";
 import createActivity from "./controllers/create-activity";
@@ -33,10 +34,10 @@ const getActivitiesRoute = createRoute({
   request: { params: taskIdParam },
   responses: {
     200: jsonResponse("List of activities for the task", activityListSchema),
-    400: errorResponse(
-      "Unknown task, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the task's workspace"),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -60,9 +61,12 @@ const createActivityRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The created activity", activitySchema),
-    400: errorResponse("Invalid body, or unknown task"),
+    400: errorResponse("Invalid body"),
     403: errorResponse(
       "No workspace access, or missing task:update permission",
+    ),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
     ),
   },
 });
@@ -87,9 +91,12 @@ const createCommentRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The created comment", activitySchema),
-    400: errorResponse("Invalid body, or unknown task"),
+    400: errorResponse("Invalid body"),
     403: errorResponse(
       "No workspace access, or missing task:update permission",
+    ),
+    404: errorResponse(
+      "The task does not exist or is in a project the caller cannot access",
     ),
   },
 });
@@ -110,9 +117,11 @@ const updateCommentRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The updated comment", activitySchema),
-    400: errorResponse("Invalid body, or unknown activity"),
+    400: errorResponse("Invalid body"),
     403: errorResponse("Not the author, or no access to the workspace"),
-    404: errorResponse("Comment not found"),
+    404: errorResponse(
+      "The comment does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -132,15 +141,23 @@ const deleteCommentRoute = createRoute({
   },
   responses: {
     200: jsonResponse("The deleted comment", activitySchema),
-    400: errorResponse("Invalid body, or unknown activity"),
+    400: errorResponse("Invalid body"),
     403: errorResponse("Not the author, or no access to the workspace"),
-    404: errorResponse("Comment not found"),
+    404: errorResponse(
+      "The comment does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
 const activity = apiRouter()
   .openapi(getActivitiesRoute, async (c) =>
-    c.json(await getActivities(c.req.valid("param").taskId), 200),
+    c.json(
+      await getActivities(
+        c.req.valid("param").taskId,
+        await getProjectScope(c),
+      ),
+      200,
+    ),
   )
   .openapi(createActivityRoute, async (c) => {
     const { taskId, message, type, eventData } = c.req.valid("json");

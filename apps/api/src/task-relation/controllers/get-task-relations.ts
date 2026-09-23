@@ -6,8 +6,18 @@ import {
   taskTable,
   userTable,
 } from "../../database/schema";
+import {
+  type ProjectScope,
+  visibleProjectFilter,
+} from "../../utils/project-access";
 
-async function getTaskRelations(taskId: string, workspaceId: string) {
+// A relation is listed only when the caller can reach both linked tasks: the
+// one asked about is already checked, the other may sit in a hidden project.
+async function getTaskRelations(
+  taskId: string,
+  workspaceId: string,
+  scope: ProjectScope,
+) {
   const relations = await db
     .select({
       id: taskRelationTable.id,
@@ -63,6 +73,7 @@ async function getTaskRelations(taskId: string, workspaceId: string) {
         and(
           inArray(taskTable.id, [...taskIds]),
           eq(projectTable.workspaceId, workspaceId),
+          visibleProjectFilter(scope, projectTable.id),
         ),
       );
 

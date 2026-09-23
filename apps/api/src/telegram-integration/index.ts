@@ -65,10 +65,10 @@ const getTelegramIntegrationRoute = createRoute({
       "Telegram integration details, or null",
       telegramIntegrationSchema.nullable(),
     ),
-    400: errorResponse(
-      "Unknown project, or its workspace could not be determined",
-    ),
     403: errorResponse("No access to the project's workspace"),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it",
+    ),
   },
 });
 
@@ -140,13 +140,12 @@ const deleteTelegramIntegrationRoute = createRoute({
   request: { params: projectIdParam },
   responses: {
     200: jsonResponse("The integration was removed", deletedSchema),
-    400: errorResponse(
-      "Unknown project, or its workspace could not be determined",
-    ),
     403: errorResponse(
       "No workspace access, or missing workspace:manage_settings",
     ),
-    404: errorResponse("Telegram integration not found"),
+    404: errorResponse(
+      "The project does not exist or the caller cannot access it, or it has no Telegram integration",
+    ),
   },
 });
 

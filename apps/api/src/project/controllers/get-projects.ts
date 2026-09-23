@@ -1,6 +1,10 @@
-import { and, count, eq, isNull, min, sql } from "drizzle-orm";
+import { and, asc, count, eq, isNull, min, sql } from "drizzle-orm";
 import db from "../../database";
 import { projectTable, taskTable } from "../../database/schema";
+import {
+  type ProjectScope,
+  visibleProjectFilter,
+} from "../../utils/project-access";
 
 type ProjectStatistics = {
   completionPercentage: number;
@@ -17,6 +21,7 @@ const EMPTY_STATISTICS: ProjectStatistics = {
 async function getProjectStatistics(
   workspaceId: string,
   includeArchived: boolean,
+  scope: ProjectScope,
 ) {
   const statisticsByProject = new Map<string, ProjectStatistics>();
 
@@ -38,12 +43,11 @@ async function getProjectStatistics(
     .from(taskTable)
     .innerJoin(projectTable, eq(taskTable.projectId, projectTable.id))
     .where(
-      includeArchived
-        ? eq(projectTable.workspaceId, workspaceId)
-        : and(
-            eq(projectTable.workspaceId, workspaceId),
-            isNull(projectTable.archivedAt),
-          ),
+      and(
+        eq(projectTable.workspaceId, workspaceId),
+        includeArchived ? undefined : isNull(projectTable.archivedAt),
+        visibleProjectFilter(scope, projectTable.id),
+      ),
     )
     .groupBy(taskTable.projectId);
 
@@ -62,26 +66,35 @@ async function getProjectStatistics(
   return statisticsByProject;
 }
 
-async function getProjects(workspaceId: string, includeArchived = false) {
-  const projects = await db.query.projectTable.findMany({
-    where: includeArchived
-      ? eq(projectTable.workspaceId, workspaceId)
-      : and(
-          eq(projectTable.workspaceId, workspaceId),
-          isNull(projectTable.archivedAt),
-        ),
+async function getProjects(
+  workspaceId: string,
+  includeArchived: boolean,
+  scope: ProjectScope,
+) {
+  // The select builder rather than db.query: the relational builder aliases
+  // the table, which breaks the visibility filter's correlated reference.
+  const projects = await db
+    .select()
+    .from(projectTable)
+    .where(
+      and(
+        eq(projectTable.workspaceId, workspaceId),
+        includeArchived ? undefined : isNull(projectTable.archivedAt),
+        visibleProjectFilter(scope, projectTable.id),
+      ),
+    )
     // `id` is the deterministic tie-breaker: without it, rows sharing both a
     // position and a createdAt come back in an unspecified order.
-    orderBy: (project, { asc }) => [
-      asc(project.position),
-      asc(project.createdAt),
-      asc(project.id),
-    ],
-  });
+    .orderBy(
+      asc(projectTable.position),
+      asc(projectTable.createdAt),
+      asc(projectTable.id),
+    );
 
   const statisticsByProject = await getProjectStatistics(
     workspaceId,
     includeArchived,
+    scope,
   );
 
   return projects.map((project) => ({

@@ -8,11 +8,17 @@ import {
 
 export const statement = {
   ...defaultStatements,
-  project: ["create", "read", "update", "delete", "share"],
+  // access_all: reach every project in the workspace. Without it a user only
+  // reaches projects they are a member of. It lifts the membership check for
+  // writes too; each action still needs its own permission.
+  project: ["create", "read", "access_all", "update", "delete", "share"],
   task: ["create", "read", "update", "delete", "assign"],
   label: ["create", "read", "update", "delete"],
   workspace: ["read", "update", "delete", "manage_settings"],
 } as const;
+
+// Shared by the API and the web so both check the same string.
+export const PROJECT_ACCESS_ALL = { project: ["access_all"] } as const;
 
 export const ac = createAccessControl(statement);
 
@@ -34,7 +40,7 @@ export const member = ac.newRole({
 
 export const admin = ac.newRole({
   ...adminAc.statements,
-  project: ["create", "read", "update", "delete", "share"],
+  project: ["create", "read", "access_all", "update", "delete", "share"],
   task: ["create", "read", "update", "delete", "assign"],
   label: ["create", "read", "update", "delete"],
   workspace: ["read", "update", "manage_settings"],
@@ -42,7 +48,7 @@ export const admin = ac.newRole({
 
 export const owner = ac.newRole({
   ...ownerAc.statements,
-  project: ["create", "read", "update", "delete", "share"],
+  project: ["create", "read", "access_all", "update", "delete", "share"],
   task: ["create", "read", "update", "delete", "assign"],
   label: ["create", "read", "update", "delete"],
   workspace: ["read", "update", "delete", "manage_settings"],

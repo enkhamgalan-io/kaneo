@@ -113,7 +113,10 @@ function RouteComponent() {
   const { projectId: rawProjectId } = useParams({ strict: false });
   const projectId = rawProjectId ?? "";
   const { data: fetchedProject } = useGetTasks(projectId);
-  const { project, setProject } = useProjectStore();
+  const { project: storedProject, setProject } = useProjectStore();
+  // The store keeps the last project opened. Until this one loads the form
+  // must not show, or autosave into, that other project.
+  const project = storedProject?.id === projectId ? storedProject : undefined;
 
   useEffect(() => {
     if (fetchedProject) {

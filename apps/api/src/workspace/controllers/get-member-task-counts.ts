@@ -1,12 +1,18 @@
 import { and, count, eq, isNotNull } from "drizzle-orm";
 import db from "../../database";
 import { columnTable, projectTable, taskTable } from "../../database/schema";
+import {
+  type ProjectScope,
+  visibleProjectFilter,
+} from "../../utils/project-access";
 import { openTaskCase, overdueTaskCase } from "./member-task-status";
 
 // Aggregated in the database, grouped by assignee, so the members table costs
 // one query no matter how many members or tasks the workspace has. Mirrors the
 // approach in `project/controllers/get-projects.ts`.
-async function getMemberTaskCounts(workspaceId: string) {
+// Counted over the caller's visible projects only, so the numbers match
+// what the member page shows the same caller.
+async function getMemberTaskCounts(workspaceId: string, scope: ProjectScope) {
   const rows = await db
     .select({
       userId: taskTable.userId,
@@ -26,6 +32,7 @@ async function getMemberTaskCounts(workspaceId: string) {
       and(
         eq(projectTable.workspaceId, workspaceId),
         isNotNull(taskTable.userId),
+        visibleProjectFilter(scope, projectTable.id),
       ),
     )
     .groupBy(taskTable.userId);

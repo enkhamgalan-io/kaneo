@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/popover";
 import { useBulkOperations } from "@/hooks/mutations/task/use-bulk-operations";
 import useGetLabelsByWorkspace from "@/hooks/queries/label/use-get-labels-by-workspace";
+import { useAssignableUsers } from "@/hooks/queries/project/use-assignable-users";
 import useActiveWorkspace from "@/hooks/queries/workspace/use-active-workspace";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
 import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
@@ -114,9 +115,15 @@ function BacklogBulkToolbar({
     bulkDueDate,
   } = useBulkOperations();
   const { data: workspace } = useActiveWorkspace();
-  const { data: workspaceUsers } = useGetActiveWorkspaceUsers(
-    workspace?.id ?? "",
+  // A single project's board offers only the people who can reach it. A
+  // selection across projects keeps the workspace list; the API refuses the
+  // whole change if the assignee cannot reach one of them.
+  const singleProjectId = getSharedColumns ? undefined : project?.id;
+  const { data: projectUsers } = useAssignableUsers(singleProjectId);
+  const { data: allWorkspaceUsers } = useGetActiveWorkspaceUsers(
+    singleProjectId ? "" : (workspace?.id ?? ""),
   );
+  const workspaceUsers = singleProjectId ? projectUsers : allWorkspaceUsers;
   const { data: workspaceLabels = [] } = useGetLabelsByWorkspace(
     workspace?.id ?? "",
   );

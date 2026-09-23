@@ -1,11 +1,12 @@
 import { type BuiltInRoleName, builtInRoles } from "@kaneo/permissions";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Context, Next } from "hono";
 import { HTTPException } from "hono/http-exception";
 import db, { schema } from "../database";
 import { isInstanceAdmin } from "./is-instance-admin";
 
-type PermissionMap = Record<string, string[]>;
+// Readonly, so shared constants such as PROJECT_ACCESS_ALL can be passed as is.
+type PermissionMap = Record<string, readonly string[]>;
 
 function builtInRoleStatements(
   role: string,
@@ -84,6 +85,37 @@ function satisfies(
   return true;
 }
 
+// The member's workspace role, resolved the way every permission check
+// resolves it: the workspace_role row when present (so admin-edited defaults
+// take effect immediately), else the compiled-in built-in role, which
+// protects viewer/member/admin users from a 403 if their workspace somehow
+// missed the seed (e.g., seed failed during workspace creation and the
+// boot-time backfill hasn't run yet).
+async function memberRoleSatisfies(
+  workspaceId: string,
+  userId: string,
+  permissions: PermissionMap,
+): Promise<boolean> {
+  const [member] = await db
+    .select({ role: schema.workspaceUserTable.role })
+    .from(schema.workspaceUserTable)
+    .where(
+      and(
+        eq(schema.workspaceUserTable.workspaceId, workspaceId),
+        eq(schema.workspaceUserTable.userId, userId),
+      ),
+    )
+    .limit(1);
+
+  if (!member?.role) return false;
+
+  const statements =
+    (await customRoleStatements(workspaceId, member.role)) ??
+    builtInRoleStatements(member.role);
+
+  return Boolean(statements && satisfies(statements, permissions));
+}
+
 export async function hasWorkspacePermission(
   c: Context,
   permissions: PermissionMap,
@@ -105,30 +137,95 @@ export async function hasWorkspacePermission(
   const userId = c.get("userId");
   if (!userId) return false;
 
-  const [member] = await db
-    .select({ role: schema.workspaceUserTable.role })
-    .from(schema.workspaceUserTable)
-    .where(
-      and(
-        eq(schema.workspaceUserTable.workspaceId, workspaceId),
-        eq(schema.workspaceUserTable.userId, userId),
-      ),
-    )
+  return memberRoleSatisfies(workspaceId, userId, permissions);
+}
+
+/**
+ * hasWorkspacePermission for code that runs outside a route's middleware (the
+ * project socket, asset downloads): the same order of API key scopes, then
+ * instance admin, then the member's role.
+ */
+export async function userHasWorkspacePermission({
+  userId,
+  workspaceId,
+  permissions,
+  apiKeyPermissions,
+}: {
+  userId: string;
+  workspaceId: string;
+  permissions: PermissionMap;
+  apiKeyPermissions?: Record<string, string[]> | null;
+}): Promise<boolean> {
+  if (apiKeyPermissions && !satisfies(apiKeyPermissions, permissions)) {
+    return false;
+  }
+
+  const [user] = await db
+    .select({ role: schema.userTable.role })
+    .from(schema.userTable)
+    .where(eq(schema.userTable.id, userId))
     .limit(1);
+  if (user?.role === "admin") return true;
 
-  if (!member?.role) return false;
+  return memberRoleSatisfies(workspaceId, userId, permissions);
+}
 
-  // Prefer the DB row when present so admin-edited defaults
-  // (viewer/member/admin) take effect immediately. Falls back to the
-  // compiled-in static definitions only when no row exists, which protects
-  // viewer/member/admin users from a 403 if their workspace somehow
-  // missed the seed (e.g., seed failed during workspace creation and
-  // the boot-time backfill hasn't run yet).
-  const statements =
-    (await customRoleStatements(workspaceId, member.role)) ??
-    builtInRoleStatements(member.role);
+/**
+ * Of these users, the ones that hold `permissions` in the workspace through
+ * their own role (API keys play no part: this asks about people, e.g. who can
+ * be assigned or notified). Instance admins always qualify.
+ */
+export async function usersWithWorkspacePermission(
+  workspaceId: string,
+  userIds: string[],
+  permissions: PermissionMap,
+): Promise<Set<string>> {
+  const granted = new Set<string>();
+  const unique = [...new Set(userIds)];
+  if (unique.length === 0) return granted;
 
-  return Boolean(statements && satisfies(statements, permissions));
+  const [instanceAdmins, members] = await Promise.all([
+    db
+      .select({ id: schema.userTable.id })
+      .from(schema.userTable)
+      .where(
+        and(
+          inArray(schema.userTable.id, unique),
+          eq(schema.userTable.role, "admin"),
+        ),
+      ),
+    db
+      .select({
+        userId: schema.workspaceUserTable.userId,
+        role: schema.workspaceUserTable.role,
+      })
+      .from(schema.workspaceUserTable)
+      .where(
+        and(
+          eq(schema.workspaceUserTable.workspaceId, workspaceId),
+          inArray(schema.workspaceUserTable.userId, unique),
+        ),
+      ),
+  ]);
+
+  for (const admin of instanceAdmins) granted.add(admin.id);
+
+  // Resolve each distinct role once, however many members hold it.
+  const roleGrants = new Map<string, boolean>();
+  for (const member of members) {
+    if (!member.role) continue;
+    let allowed = roleGrants.get(member.role);
+    if (allowed === undefined) {
+      const statements =
+        (await customRoleStatements(workspaceId, member.role)) ??
+        builtInRoleStatements(member.role);
+      allowed = Boolean(statements && satisfies(statements, permissions));
+      roleGrants.set(member.role, allowed);
+    }
+    if (allowed) granted.add(member.userId);
+  }
+
+  return granted;
 }
 
 export function requireWorkspacePermission(permissions: PermissionMap) {

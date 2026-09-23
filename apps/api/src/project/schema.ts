@@ -2,6 +2,17 @@ import { z } from "../openapi";
 
 export const projectParam = z.object({ id: z.string() });
 
+export const projectMemberParam = z.object({
+  id: z.string(),
+  userId: z.string(),
+});
+
+export const addProjectMemberBody = z.object({
+  userId: z.string().openapi({
+    description: "A member of the project's workspace.",
+  }),
+});
+
 export const workspaceIdQuery = z.object({ workspaceId: z.string() });
 
 export const listProjectsQuery = z.object({

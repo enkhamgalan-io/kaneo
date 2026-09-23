@@ -57,6 +57,10 @@ vi.mock(
   }),
 );
 
+vi.mock("@/hooks/queries/project/use-assignable-users", () => ({
+  useAssignableUsers: () => ({ data: { members: [] } }),
+}));
+
 vi.mock("@/hooks/mutations/task/use-update-task", () => ({
   useUpdateTask: () => ({ mutateAsync: vi.fn() }),
 }));

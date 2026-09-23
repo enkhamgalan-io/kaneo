@@ -56,11 +56,18 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
   const { t } = useTranslation();
-  const { workspace, canCreateLabels, canUpdateLabels, canDeleteLabels } =
-    useWorkspacePermission();
+  const {
+    workspace,
+    canCreateLabels,
+    canUpdateLabels,
+    canDeleteLabels,
+    canAccessAllProjects,
+  } = useWorkspacePermission();
   const canCreate = canCreateLabels();
-  const canUpdate = canUpdateLabels();
-  const canDelete = canDeleteLabels();
+  // A workspace label changes on every task that uses it, in projects the
+  // user may not be able to open, so the API also asks for access to all.
+  const canUpdate = canUpdateLabels() && canAccessAllProjects();
+  const canDelete = canDeleteLabels() && canAccessAllProjects();
 
   const workspaceId = workspace?.id ?? "";
 

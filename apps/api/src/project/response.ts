@@ -55,3 +55,24 @@ export const projectListItemSchema = projectSchema
   .openapi("ProjectListItem");
 
 export const projectListSchema = z.array(projectListItemSchema);
+
+export const projectMemberSchema = z
+  .object({
+    id: z.string().openapi({ description: "The user's ID." }),
+    name: z.string(),
+    email: z.string(),
+    image: z.string().nullable(),
+    role: z.string().openapi({
+      description: "The user's workspace role.",
+    }),
+    access: z.enum(["member", "all"]).openapi({
+      description:
+        '"member": added to this project. "all": their role reaches every project in the workspace (project:access_all), so they cannot be removed here.',
+    }),
+    addedAt: nullableResponseTimestamp.openapi({
+      description: 'When they were added to the project; null for "all".',
+    }),
+  })
+  .openapi("ProjectMember");
+
+export const projectMemberListSchema = z.array(projectMemberSchema);

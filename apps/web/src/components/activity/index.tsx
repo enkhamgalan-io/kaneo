@@ -385,8 +385,13 @@ function renderActivityContent({
       return (
         <span className="text-sm text-muted-foreground">
           {t("activity:moved", {
-            from: String(eventData.fromProjectName ?? ""),
-            to: String(eventData.toProjectName ?? ""),
+            // Left out by the API when the user cannot open that project.
+            from: eventData.fromProjectName
+              ? String(eventData.fromProjectName)
+              : t("activity:hiddenProject"),
+            to: eventData.toProjectName
+              ? String(eventData.toProjectName)
+              : t("activity:hiddenProject"),
           })}
         </span>
       );

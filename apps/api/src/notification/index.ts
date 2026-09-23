@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { HTTPException } from "hono/http-exception";
 import db from "../database";
 import { projectTable, taskTable } from "../database/schema";
 import { subscribeToEvent } from "../events";
@@ -8,6 +9,7 @@ import {
   errorResponse,
   jsonResponse,
 } from "../openapi";
+import { userCanAccessProject } from "../utils/project-access";
 import clearNotifications from "./controllers/clear-notifications";
 import createNotification from "./controllers/create-notification";
 import getNotifications from "./controllers/get-notifications";
@@ -52,6 +54,9 @@ const createNotificationRoute = createRoute({
       notificationSchema.nullable(),
     ),
     400: errorResponse("Invalid request"),
+    404: errorResponse(
+      "The related task does not exist or is in a project the caller cannot access",
+    ),
   },
 });
 
@@ -108,6 +113,21 @@ const notification = apiRouter()
       relatedEntityId,
       relatedEntityType,
     } = c.req.valid("json");
+    // The notification list resolves a task's project and workspace, so a
+    // task the caller cannot open is refused as not found rather than stored.
+    if (relatedEntityType === "task" && relatedEntityId) {
+      const [task] = await db
+        .select({ projectId: taskTable.projectId })
+        .from(taskTable)
+        .where(eq(taskTable.id, relatedEntityId))
+        .limit(1);
+      if (
+        !task ||
+        !(await userCanAccessProject(task.projectId, c.get("userId")))
+      ) {
+        throw new HTTPException(404, { message: "Task not found" });
+      }
+    }
     return c.json(
       await createNotification({
         userId: c.get("userId"),

@@ -4,10 +4,7 @@ import db from "../../database";
 import { columnTable, taskTable } from "../../database/schema";
 import { publishEvent } from "../../events";
 import { deleteOrphanedAssets } from "../../storage/cleanup-assets";
-import {
-  assertAssignableUser,
-  getProjectWorkspaceId,
-} from "../../utils/assert-assignable-user";
+import { assertAssignableUser } from "../../utils/assert-assignable-user";
 import { assertValidTaskStatus } from "../validate-task-fields";
 
 async function updateTask(
@@ -29,6 +26,7 @@ async function updateTask(
       description: taskTable.description,
       status: taskTable.status,
       projectId: taskTable.projectId,
+      assigneeId: taskTable.userId,
     })
     .from(taskTable)
     .where(eq(taskTable.id, id))
@@ -50,11 +48,10 @@ async function updateTask(
 
   const normalizedUserId = userId?.trim() || undefined;
 
-  if (normalizedUserId) {
-    await assertAssignableUser(
-      normalizedUserId,
-      await getProjectWorkspaceId(projectId),
-    );
+  // Only a new assignment is checked: saving a task whose assignee has since
+  // left the project must not fail on an assignment nobody is changing.
+  if (normalizedUserId && normalizedUserId !== existingTask.assigneeId) {
+    await assertAssignableUser(normalizedUserId, projectId);
   }
 
   const column = await db.query.columnTable.findFirst({

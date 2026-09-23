@@ -59,6 +59,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/menu";
+import { useAssignableUsers } from "@/hooks/queries/project/use-assignable-users";
 import useActiveWorkspace from "@/hooks/queries/workspace/use-active-workspace";
 import { useGetActiveWorkspaceUsers } from "@/hooks/queries/workspace-users/use-get-active-workspace-users";
 import { cn } from "@/lib/cn";
@@ -89,6 +90,8 @@ type CommentEditorProps = {
   onSubmitShortcut?: () => void;
   onCancelShortcut?: () => void;
   taskId?: string;
+  // When given, @mentions offer only the people who can reach this project.
+  projectId?: string;
   uploadSurface?: "description" | "comment";
   ensureTaskId?: () => Promise<string | null>;
   showQuickAttachButton?: boolean;
@@ -183,6 +186,7 @@ export default function CommentEditor({
   onSubmitShortcut,
   onCancelShortcut,
   taskId,
+  projectId,
   uploadSurface = "comment",
   ensureTaskId,
   showQuickAttachButton = true,
@@ -192,9 +196,11 @@ export default function CommentEditor({
   const resolvedPlaceholder =
     placeholder ?? t("activity:comment.leavePlaceholder");
   const { data: activeWorkspace } = useActiveWorkspace();
-  const { data: workspaceUsers } = useGetActiveWorkspaceUsers(
-    activeWorkspace?.id ?? "",
+  const { data: projectUsers } = useAssignableUsers(projectId);
+  const { data: allWorkspaceUsers } = useGetActiveWorkspaceUsers(
+    projectId ? "" : (activeWorkspace?.id ?? ""),
   );
+  const workspaceUsers = projectId ? projectUsers : allWorkspaceUsers;
   const mentionMembersRef = useRef<MentionMember[]>([]);
   mentionMembersRef.current = useMemo(
     () =>

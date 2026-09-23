@@ -1,0 +1,54 @@
+---
+title: Control Who Sees Each Project
+description: Add people to projects, and understand what each role can open
+---
+
+A workspace can hold projects that not everyone should see. Kaneo decides who opens a project from two things: their workspace role, and whether they have been added to the project.
+
+## Who can open a project
+
+| Role | Opens |
+| --- | --- |
+| Owner, Admin | Every project in the workspace |
+| Member, Viewer | Only the projects they have been added to |
+| Custom role | Every project if the role grants **Access all projects**, otherwise only the projects its holders are added to |
+
+Whoever creates a project is added to it automatically.
+
+A project someone cannot open is left out everywhere for them: the sidebar, the projects overview, search, labels on its tasks, their notifications, and the tasks shown on member pages. A direct link to it shows **Project not available**, the same page as a project that does not exist. A project's public share link keeps working for anyone who has it.
+
+## Add or remove people
+
+1. Go to **Settings -> Projects** and pick the project.
+2. Open **Members**.
+3. Choose a workspace member under **Add people** and click **Add**.
+
+To take access away, click **Remove** next to the person. Tasks already assigned to them stay assigned. People whose role opens every project are listed as **All projects** and cannot be removed here.
+
+Changing who can open a project needs the **Edit projects** permission, which Owners and Admins have by default. Everyone who can open the project can see the list.
+
+Changes apply straight away: someone who is removed loses the project from their lists and stops receiving its live updates without reloading.
+
+## Assigning tasks
+
+A task can only be assigned to someone who can open its project. Assignee pickers list those people, and assigning anyone else is refused. Mentioning someone in a task they cannot open does not notify them.
+
+## Custom roles and API keys
+
+**Settings -> Workspace -> Roles** has an **Access all projects** permission under Projects. Grant it to a custom role that should open every project.
+
+An API key limited to specific permissions follows the same rule: without **Access all projects** it reaches only the projects its owner has been added to.
+
+## After upgrading
+
+Projects used to be visible to everyone in the workspace. On the first start after upgrading, Kaneo adds each person to the projects where they have assigned tasks, in any status. Everyone else, and in particular Viewers and Members with no assigned tasks, starts with no projects until an admin adds them.
+
+Existing Admin roles, including edited ones, gain **Access all projects**.
+
+## API
+
+- `GET /api/project/{id}/members` lists who can open a project.
+- `POST /api/project/{id}/members` with `{ "userId": "..." }` adds a workspace member.
+- `DELETE /api/project/{id}/members/{userId}` removes one.
+
+A project, task or other record in a project the caller cannot open answers `404`, the same as one that does not exist.

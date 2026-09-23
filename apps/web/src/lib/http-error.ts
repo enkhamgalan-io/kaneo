@@ -12,6 +12,19 @@ export function isUnauthorizedError(error: unknown): boolean {
   return error instanceof HttpError && error.status === 401;
 }
 
+// A 4xx answer, which asking again will not change.
+export function isClientError(error: unknown): boolean {
+  return (
+    error instanceof HttpError && error.status >= 400 && error.status < 500
+  );
+}
+
+// A project or task the API answers with 404: missing, or in a project the
+// user has not been added to.
+export function isNotFoundError(error: unknown): boolean {
+  return error instanceof HttpError && error.status === 404;
+}
+
 // Shared unauthorized redirect for both the React Query error cache and direct
 // fetcher calls (e.g. route loaders) that bypass the QueryCache. Stashes the
 // current pathname/search/hash so the sign-in page can return the user to

@@ -116,7 +116,9 @@ describe("API integration: labels", () => {
 
   describe("deletion cascade", () => {
     it("deletes task-level copies when a workspace label is deleted", async () => {
-      const member = await createWorkspaceMember();
+      // Deleting a workspace label reaches every project, so it takes a role
+      // with project:access_all.
+      const member = await createWorkspaceMember({ role: "admin" });
       const { project, columns } = await createProjectFixture({
         workspaceId: member.workspace.id,
       });
@@ -206,7 +208,7 @@ describe("API integration: labels", () => {
     });
 
     it("does not affect unrelated labels when deleting a workspace label", async () => {
-      const member = await createWorkspaceMember();
+      const member = await createWorkspaceMember({ role: "admin" });
       const { project, columns } = await createProjectFixture({
         workspaceId: member.workspace.id,
       });

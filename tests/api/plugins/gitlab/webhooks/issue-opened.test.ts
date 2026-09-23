@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
     claimTaskNumber: vi.fn(),
     resolveTargetStatus: vi.fn(),
     publishEvent: vi.fn(),
+    userCanAccessProject: vi.fn(),
     columnFindFirst: vi.fn(),
     projectFindFirst: vi.fn(),
     userFindFirst: vi.fn(),
@@ -41,6 +42,11 @@ vi.mock("../../../../../apps/api/src/database", () => ({ default: mocks.db }));
 
 vi.mock("../../../../../apps/api/src/events", () => ({
   publishEvent: (...a: unknown[]) => mocks.publishEvent(...a),
+}));
+
+// Only someone who can reach the task's project may be assigned it.
+vi.mock("../../../../../apps/api/src/utils/project-access", () => ({
+  userCanAccessProject: (...a: unknown[]) => mocks.userCanAccessProject(...a),
 }));
 
 vi.mock(
@@ -117,6 +123,7 @@ function issueOpenedPayload(labels: Array<{ title: string }>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.userCanAccessProject.mockResolvedValue(true);
   mocks.insertedValues.length = 0;
   mocks.findAllIntegrationsByGitlabProject.mockResolvedValue([integration]);
   mocks.findExternalLink.mockResolvedValue(null);
@@ -170,5 +177,32 @@ describe("handleGitlabIssueOpened", () => {
 
     expect(mocks.insertedValues).toHaveLength(1);
     expect(mocks.insertedValues[0].userId).toBe("user-kaneo-1");
+  });
+
+  it("leaves the task unassigned when the matched user cannot reach the project", async () => {
+    mocks.userFindFirst.mockResolvedValueOnce({
+      id: "user-kaneo-1",
+      email: "dev@example.com",
+    });
+    mocks.userCanAccessProject.mockResolvedValue(false);
+
+    await handleGitlabIssueOpened({
+      ...issueOpenedPayload([]),
+      assignees: [
+        {
+          id: 101,
+          name: "Developer",
+          username: "dev",
+          email: "dev@example.com",
+        },
+      ],
+    });
+
+    expect(mocks.insertedValues).toHaveLength(1);
+    expect(mocks.insertedValues[0].userId).toBeNull();
+    expect(mocks.userCanAccessProject).toHaveBeenCalledWith(
+      mocks.insertedValues[0].projectId,
+      "user-kaneo-1",
+    );
   });
 });

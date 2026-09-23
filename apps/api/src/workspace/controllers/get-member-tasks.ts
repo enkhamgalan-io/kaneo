@@ -9,6 +9,10 @@ import {
   workspaceUserTable,
 } from "../../database/schema";
 import {
+  type ProjectScope,
+  visibleProjectFilter,
+} from "../../utils/project-access";
+import {
   ARCHIVED_STATUS,
   BACKLOG_STATUS,
   humanizeStatus,
@@ -22,7 +26,13 @@ type StatusSummary = {
   count: number;
 };
 
-async function getMemberTasks(workspaceId: string, memberUserId: string) {
+// `scope` is the caller's, not the member's: someone limited to their own
+// projects sees a colleague's tasks only in the projects they share.
+async function getMemberTasks(
+  workspaceId: string,
+  memberUserId: string,
+  scope: ProjectScope,
+) {
   // Resolve the target through this workspace's membership rather than the
   // user table. A user id from another workspace must be indistinguishable
   // from one that does not exist, or this endpoint becomes a way to probe
@@ -87,6 +97,7 @@ async function getMemberTasks(workspaceId: string, memberUserId: string) {
       and(
         eq(projectTable.workspaceId, workspaceId),
         eq(taskTable.userId, memberUserId),
+        visibleProjectFilter(scope, projectTable.id),
       ),
     )
     // Projects come back in the same order the workspace overview lists them

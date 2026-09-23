@@ -80,7 +80,10 @@ function RouteComponent() {
   const { taskId } = Route.useSearch();
   const navigate = useNavigate();
   const { data } = useGetTasks(projectId);
-  const { project, setProject } = useProjectStore();
+  const { project: storedProject, setProject } = useProjectStore();
+  // The store keeps the last board opened. Until this project's board loads,
+  // or if it cannot be opened, that would be another project's board.
+  const project = storedProject?.id === projectId ? storedProject : undefined;
   const { viewMode, setViewMode } = useUserPreferencesStore();
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [boardSearchQuery, setBoardSearchQuery] = useState("");
