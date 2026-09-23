@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceUser,
@@ -54,25 +55,53 @@ vi.mock("@/hooks/queries/workspace/use-workspace-roles", () => ({
   default: () => ({ data: [] }),
 }));
 
-const memberTaskCounts = vi.fn(() => ({ data: [] as unknown[] }));
+const memberTaskCounts = vi.fn(
+  (_workspaceId: string, _options?: { enabled?: boolean }) => ({
+    data: [] as unknown[],
+  }),
+);
 
 vi.mock("@/hooks/queries/workspace/use-get-member-task-counts", () => ({
-  default: () => memberTaskCounts(),
+  default: (workspaceId: string, options?: { enabled?: boolean }) =>
+    memberTaskCounts(workspaceId, options),
 }));
 
 const navigate = vi.fn();
 
+// Renders the route target into data attributes so a test can assert where
+// the link points without a router.
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
+  Link: ({
+    to,
+    params,
+    children,
+    ...rest
+  }: {
+    to: string;
+    params: Record<string, string>;
+    children: ReactNode;
+  } & AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a
+      href="#member"
+      data-to={to}
+      data-params={JSON.stringify(params)}
+      {...rest}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 const canInviteUsers = vi.fn(() => true);
+const canReadTasks = vi.fn(() => true);
 
 vi.mock("@/hooks/use-workspace-permission", () => ({
   useWorkspacePermission: () => ({
     canManageTeam: () => true,
     canRemoveMembers: () => true,
     canInviteUsers: () => canInviteUsers(),
+    canReadTasks: () => canReadTasks(),
   }),
 }));
 
@@ -82,6 +111,7 @@ vi.mock("../providers/auth-provider/hooks/use-auth", () => ({
 
 beforeEach(() => {
   canInviteUsers.mockReturnValue(true);
+  canReadTasks.mockReturnValue(true);
   memberTaskCounts.mockReturnValue({ data: [] });
 });
 
@@ -198,12 +228,74 @@ describe("MembersTable member rows", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Ada Lovelace"));
+    // Anywhere on the row outside the name link, e.g. the email line.
+    fireEvent.click(screen.getByText("ada@example.com"));
 
     expect(navigate).toHaveBeenCalledWith({
       to: "/dashboard/workspace/$workspaceId/members/$userId",
       params: { workspaceId: "workspace-1", userId: "user-1" },
     });
+  });
+
+  it("renders the member's name as a real link to the same page", () => {
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Ada Lovelace" });
+
+    expect(link).toHaveAttribute(
+      "data-to",
+      "/dashboard/workspace/$workspaceId/members/$userId",
+    );
+    expect(JSON.parse(link.getAttribute("data-params") ?? "{}")).toEqual({
+      workspaceId: "workspace-1",
+      userId: "user-1",
+    });
+  });
+
+  it("does not also navigate through the row when the name link is clicked", () => {
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Ada Lovelace" }));
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("hides the Tasks column and the drill-down without task:read", () => {
+    canReadTasks.mockReturnValue(false);
+    memberTaskCounts.mockReturnValue({
+      data: [{ userId: "user-1", openCount: 4, overdueCount: 2 }],
+    });
+
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    // The counts query is not allowed to fire, so it never 403s.
+    expect(memberTaskCounts).toHaveBeenCalledWith("workspace-1", {
+      enabled: false,
+    });
+    expect(screen.queryByText("team:membersTable.columns.tasks")).toBeNull();
+    expect(screen.queryByText("team:membersTable.openTasks")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ada Lovelace" })).toBeNull();
+
+    fireEvent.click(screen.getByText("ada@example.com"));
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("does not navigate when the row action menu is opened", async () => {

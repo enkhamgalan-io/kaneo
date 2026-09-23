@@ -38,9 +38,13 @@ export function NavMain() {
     {
       title: t("navigation:sidebar.members"),
       url: `/dashboard/workspace/${workspace.id}/members`,
+      // Also active on a member's own page, /members/$userId.
       isActive:
         window.location.pathname ===
-        `/dashboard/workspace/${workspace.id}/members`,
+          `/dashboard/workspace/${workspace.id}/members` ||
+        window.location.pathname.startsWith(
+          `/dashboard/workspace/${workspace.id}/members/`,
+        ),
       badge: null,
     },
     {

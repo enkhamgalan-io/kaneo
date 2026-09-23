@@ -1,11 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, UserX } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ShieldOff, TriangleAlert, UserX } from "lucide-react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import WorkspaceLayout from "@/components/common/workspace-layout";
 import PageTitle from "@/components/page-title";
 import TaskDetailsSheet from "@/components/task/task-details-sheet";
+import { resolveMemberPageState } from "@/components/team/member-page-state";
 import MemberTaskList from "@/components/team/member-task-list";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +26,11 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import useGetMemberTasks from "@/hooks/queries/workspace/use-get-member-tasks";
+import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
 import { toneFor } from "@/lib/avatar-tone";
 import { cn } from "@/lib/cn";
 import { getInitials } from "@/lib/get-initials";
+import { HttpError } from "@/lib/http-error";
 
 type MemberTasksSearchParams = {
   taskId?: string;
@@ -49,9 +58,28 @@ function RouteComponent() {
   const { taskId } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useGetMemberTasks(workspaceId, userId);
+  const {
+    canReadTasks,
+    isCheckingPermissions,
+    isLoadingMember,
+    isMemberError,
+  } = useWorkspacePermission();
+  const canViewTasks = Boolean(canReadTasks());
+  const { data, isPending, error } = useGetMemberTasks(workspaceId, userId, {
+    enabled: canViewTasks,
+  });
 
   const member = data?.member;
+  const pageState = resolveMemberPageState({
+    isLoadingMember,
+    isMemberError,
+    isCheckingPermissions,
+    canViewTasks,
+    isPending,
+    errorStatus: error instanceof HttpError ? error.status : undefined,
+    hasError: Boolean(error),
+    hasData: Boolean(member),
+  });
   const title = member?.name || t("team:memberTasks.pageTitle");
 
   // The sheet needs the task's project, which varies per row here. It comes
@@ -86,22 +114,37 @@ function RouteComponent() {
   }, [navigate, queryClient, workspaceId, userId]);
 
   const backAction = (
-    <Link
-      to="/dashboard/workspace/$workspaceId/members"
-      params={{ workspaceId }}
+    <Button
+      render={
+        <Link
+          to="/dashboard/workspace/$workspaceId/members"
+          params={{ workspaceId }}
+        />
+      }
+      variant="ghost"
+      size="sm"
+      className="gap-2"
     >
-      <Button variant="ghost" size="sm" className="gap-2">
-        <ArrowLeft className="w-4 h-4" />
-        {t("team:memberTasks.backToMembers")}
-      </Button>
-    </Link>
+      <ArrowLeft className="w-4 h-4" />
+      {t("team:memberTasks.backToMembers")}
+    </Button>
+  );
+
+  const statePanel = (icon: ReactNode, title: string, description: string) => (
+    <Empty className="min-h-[50vh]">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">{icon}</EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 
   return (
     <>
       <PageTitle title={title} />
       <WorkspaceLayout title={title} headerActions={backAction}>
-        {isLoading ? (
+        {pageState === "loading" ? (
           <div className="space-y-6">
             <Skeleton className="h-14 w-64" />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -115,18 +158,24 @@ function RouteComponent() {
               ))}
             </div>
           </div>
-        ) : isError || !data || !member ? (
-          <Empty className="min-h-[50vh]">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UserX />
-              </EmptyMedia>
-              <EmptyTitle>{t("team:memberTasks.notFoundTitle")}</EmptyTitle>
-              <EmptyDescription>
-                {t("team:memberTasks.notFoundDescription")}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+        ) : pageState === "no-permission" ? (
+          statePanel(
+            <ShieldOff />,
+            t("team:memberTasks.noPermissionTitle"),
+            t("team:memberTasks.noPermissionDescription"),
+          )
+        ) : pageState === "not-found" ? (
+          statePanel(
+            <UserX />,
+            t("team:memberTasks.notFoundTitle"),
+            t("team:memberTasks.notFoundDescription"),
+          )
+        ) : pageState === "load-error" || !data || !member ? (
+          statePanel(
+            <TriangleAlert />,
+            t("team:memberTasks.loadErrorTitle"),
+            t("team:memberTasks.loadErrorDescription"),
+          )
         ) : (
           <div className="space-y-6">
             <div className="flex items-center gap-3">

@@ -2286,6 +2286,10 @@
 			"backToMembers": "Back to members",
 			"notFoundTitle": "Member not found",
 			"notFoundDescription": "This person is not a member of this workspace.",
+			"noPermissionTitle": "You can't view tasks",
+			"noPermissionDescription": "Your role doesn't include permission to read tasks in this workspace.",
+			"loadErrorTitle": "Couldn't load tasks",
+			"loadErrorDescription": "Something went wrong while loading this member's tasks. Try again in a moment.",
 			"emptyTitle": "No tasks assigned",
 			"emptyDescription": "{{name}} has no tasks assigned in this workspace yet.",
 			"summary": {

@@ -1,4 +1,5 @@
 import { client } from "@kaneo/libs";
+import { HttpError } from "@/lib/http-error";
 
 async function getMemberTasks(workspaceId: string, userId: string) {
   const response = await client.workspace[":workspaceId"].members[
@@ -8,8 +9,7 @@ async function getMemberTasks(workspaceId: string, userId: string) {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error);
+    throw new HttpError(response.status, "Could not load member tasks");
   }
 
   return response.json();

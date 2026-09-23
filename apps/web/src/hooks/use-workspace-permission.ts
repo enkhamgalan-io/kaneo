@@ -17,6 +17,7 @@ const CAPABILITIES = {
   createProjects: { project: ["create"] },
   updateProjects: { project: ["update"] },
   deleteProjects: { project: ["delete"] },
+  readTasks: { task: ["read"] },
   updateTasks: { task: ["update"] },
   createTasks: { task: ["create"] },
   deleteTasks: { task: ["delete"] },
@@ -45,7 +46,11 @@ function emptyCapabilityMap(): CapabilityMap {
 
 export function useWorkspacePermission() {
   const { data: activeWorkspace } = useActiveWorkspace();
-  const { data: activeMember } = useGetActiveWorkspaceUser();
+  const {
+    data: activeMember,
+    isLoading: isLoadingMember,
+    isError: isMemberError,
+  } = useGetActiveWorkspaceUser();
   const workspaceId = activeWorkspace?.id;
   const role = activeMember?.role as string | undefined;
 
@@ -95,6 +100,7 @@ export function useWorkspacePermission() {
       canCreateProjects: () => can.createProjects,
       canUpdateProjects: () => can.updateProjects,
       canDeleteProjects: () => can.deleteProjects,
+      canReadTasks: () => can.readTasks,
       canUpdateTasks: () => can.updateTasks,
       canCreateTasks: () => can.createTasks,
       canDeleteTasks: () => can.deleteTasks,
@@ -128,6 +134,10 @@ export function useWorkspacePermission() {
     ...helpers,
     workspace: activeWorkspace,
     member: activeMember,
+    // The caller's own membership, as query state rather than data: `member`
+    // is undefined while loading, but also after an error or while disabled.
+    isLoadingMember,
+    isMemberError,
     role,
     isOwner: role === "owner",
     isAdmin: role === "owner" || role === "admin",

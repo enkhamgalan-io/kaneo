@@ -1,6 +1,10 @@
 import * as Sentry from "@sentry/react";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import { handleUnauthorized, isUnauthorizedError } from "@/lib/http-error";
+import {
+  HttpError,
+  handleUnauthorized,
+  isUnauthorizedError,
+} from "@/lib/http-error";
 
 // TanStack raises these before any fetcher-level message exists; CORS rejections
 // from the browser also surface here. Used both to skip auto-retry and to tag
@@ -53,6 +57,19 @@ function captureCacheError(error: unknown, context: "query" | "mutation") {
   Sentry.captureException(error, { tags: { area } });
 }
 
+export function defaultQueryRetry(failureCount: number, error: unknown) {
+  return isNetworkError(error) || isUnauthorizedError(error)
+    ? false
+    : failureCount < 2;
+}
+
+// For queries whose 4xx answers are final: a 403 or 404 will not change on
+// retry, so only server and transient failures get another attempt.
+export function retryServerErrors(failureCount: number, error: unknown) {
+  if (error instanceof HttpError && error.status < 500) return false;
+  return defaultQueryRetry(failureCount, error);
+}
+
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
@@ -70,10 +87,7 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       refetchOnMount: false,
-      retry: (failureCount, error) =>
-        isNetworkError(error) || isUnauthorizedError(error)
-          ? false
-          : failureCount < 2,
+      retry: defaultQueryRetry,
     },
     mutations: {
       retry: false,

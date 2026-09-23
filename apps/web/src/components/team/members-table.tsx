@@ -1,5 +1,5 @@
 import { DEFAULT_ROLE_NAMES } from "@kaneo/permissions";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CopyIcon,
   EllipsisIcon,
@@ -82,7 +82,6 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
 
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { data: taskCounts } = useGetMemberTaskCounts(workspaceId);
   const { mutateAsync: deleteWorkspaceUser, isPending: isDeleting } =
     useDeleteWorkspaceUser();
   const { mutateAsync: cancelInvitation, isPending: isCancelling } =
@@ -90,11 +89,17 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
   const { mutateAsync: updateMemberRole } = useUpdateWorkspaceUserRole();
   const { copy: copyInvitationLink } = useCopyInvitationLink();
   const { data: allWorkspaceRoles = [] } = useWorkspaceRoles(workspaceId);
-  const { canManageTeam, canRemoveMembers, canInviteUsers } =
+  const { canManageTeam, canRemoveMembers, canInviteUsers, canReadTasks } =
     useWorkspacePermission();
   const canChangeRoles = Boolean(canManageTeam());
   const canRemove = Boolean(canRemoveMembers());
   const canInvite = Boolean(canInviteUsers());
+  // Both member-task routes require task:read, so without it the Tasks column
+  // and the drill-down are hidden instead of being left to fail with a 403.
+  const canViewTasks = Boolean(canReadTasks());
+  const { data: taskCounts } = useGetMemberTaskCounts(workspaceId, {
+    enabled: canViewTasks,
+  });
 
   const customRoles = allWorkspaceRoles.filter(
     (role) => !RESERVED_ROLE_NAMES.has(role.role),
@@ -189,11 +194,13 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
             <TableHead className="text-foreground font-medium">
               {t("team:membersTable.columns.role", { defaultValue: "Role" })}
             </TableHead>
-            <TableHead className="text-foreground font-medium">
-              {t("team:membersTable.columns.tasks", {
-                defaultValue: "Tasks",
-              })}
-            </TableHead>
+            {canViewTasks ? (
+              <TableHead className="text-foreground font-medium">
+                {t("team:membersTable.columns.tasks", {
+                  defaultValue: "Tasks",
+                })}
+              </TableHead>
+            ) : null}
             <TableHead className="text-foreground font-medium">
               {t("team:membersTable.columns.joined", {
                 defaultValue: "Joined",
@@ -212,8 +219,14 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
             return (
               <TableRow
                 key={member.user.email}
-                className="cursor-pointer"
-                onClick={() => openMemberTasks(member.userId)}
+                className={cn(canViewTasks && "cursor-pointer")}
+                // A mouse convenience. The name link is the keyboard and
+                // screen-reader route to the same page.
+                onClick={
+                  canViewTasks
+                    ? () => openMemberTasks(member.userId)
+                    : undefined
+                }
               >
                 <TableCell className="ps-6 py-3">
                   <div className="flex items-center gap-3">
@@ -228,9 +241,26 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {member.user.name}
-                        </span>
+                        {canViewTasks ? (
+                          <Link
+                            to="/dashboard/workspace/$workspaceId/members/$userId"
+                            params={{ workspaceId, userId: member.userId }}
+                            className="text-sm font-medium hover:underline"
+                            // The row also navigates on click. Stopping the
+                            // bubble keeps a plain click from navigating twice
+                            // and a ctrl-click from also moving this tab.
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {/* A member who signed in by OTP and skipped profile
+                                setup has an empty name; an empty link would be
+                                an unlabelled tab stop. */}
+                            {member.user.name || member.user.email}
+                          </Link>
+                        ) : (
+                          <span className="text-sm font-medium">
+                            {member.user.name}
+                          </span>
+                        )}
                         {isSelf ? (
                           <span className="text-xs text-muted-foreground">
                             ({t("team:members.you", { defaultValue: "You" })})
@@ -243,8 +273,6 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
                     </div>
                   </div>
                 </TableCell>
-                {/* The role control lives inside a clickable row, so its
-                    clicks must not also open the member's task page. */}
                 {/* The role control lives inside a clickable row, so its
                     clicks must not also open the member's task page. */}
                 <TableCell
@@ -301,26 +329,28 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="py-3 text-sm tabular-nums">
-                  {counts && counts.openCount + counts.overdueCount > 0 ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">
-                        {t("team:membersTable.openTasks", {
-                          count: counts.openCount,
-                        })}
-                      </span>
-                      {counts.overdueCount > 0 ? (
-                        <Badge variant="error" size="sm">
-                          {t("team:membersTable.overdueTasks", {
-                            count: counts.overdueCount,
+                {canViewTasks ? (
+                  <TableCell className="py-3 text-sm tabular-nums">
+                    {counts && counts.openCount + counts.overdueCount > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">
+                          {t("team:membersTable.openTasks", {
+                            count: counts.openCount,
                           })}
-                        </Badge>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">–</span>
-                  )}
-                </TableCell>
+                        </span>
+                        {counts.overdueCount > 0 ? (
+                          <Badge variant="error" size="sm">
+                            {t("team:membersTable.overdueTasks", {
+                              count: counts.overdueCount,
+                            })}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">–</span>
+                    )}
+                  </TableCell>
+                ) : null}
                 <TableCell className="py-3 text-sm text-muted-foreground tabular-nums">
                   {member.createdAt ? formatDateMedium(member.createdAt) : "–"}
                 </TableCell>
@@ -397,9 +427,11 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
               </TableCell>
               {/* Tasks and Joined: an invitee has no account yet, so neither
                   column has a value to show. */}
-              <TableCell className="py-3 text-sm text-muted-foreground">
-                –
-              </TableCell>
+              {canViewTasks ? (
+                <TableCell className="py-3 text-sm text-muted-foreground">
+                  –
+                </TableCell>
+              ) : null}
               <TableCell className="py-3 text-sm text-muted-foreground">
                 –
               </TableCell>
@@ -442,7 +474,10 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
 
           {users.length === 0 && pendingInvitations.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-16 text-center">
+              <TableCell
+                colSpan={canViewTasks ? 5 : 4}
+                className="py-16 text-center"
+              >
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                   <p className="text-sm font-medium text-foreground">
                     {t("team:membersTable.emptyTitle")}

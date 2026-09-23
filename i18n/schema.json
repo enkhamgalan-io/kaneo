@@ -8842,6 +8842,18 @@
 						"notFoundDescription": {
 							"type": "string"
 						},
+						"noPermissionTitle": {
+							"type": "string"
+						},
+						"noPermissionDescription": {
+							"type": "string"
+						},
+						"loadErrorTitle": {
+							"type": "string"
+						},
+						"loadErrorDescription": {
+							"type": "string"
+						},
 						"emptyTitle": {
 							"type": "string"
 						},
@@ -8949,6 +8961,10 @@
 						"backToMembers",
 						"notFoundTitle",
 						"notFoundDescription",
+						"noPermissionTitle",
+						"noPermissionDescription",
+						"loadErrorTitle",
+						"loadErrorDescription",
 						"emptyTitle",
 						"emptyDescription",
 						"summary",
