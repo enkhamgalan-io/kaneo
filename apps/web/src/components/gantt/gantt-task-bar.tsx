@@ -24,6 +24,12 @@ type GanttTaskBarProps = {
   pixelsPerDay: number;
   isMobile?: boolean;
   onOpenTask: () => void;
+  // Replaces the default whole-task write of the task as this bar holds it.
+  onPersistDates?: (
+    task: Task,
+    startDate: string,
+    dueDate: string,
+  ) => Promise<void>;
 };
 
 function getBarGridColumns(
@@ -56,6 +62,7 @@ export function GanttTaskBar({
   pixelsPerDay,
   isMobile = false,
   onOpenTask,
+  onPersistDates,
 }: GanttTaskBarProps) {
   const { t } = useTranslation();
   const { mutateAsync: updateTask } = useUpdateTask();
@@ -90,11 +97,15 @@ export function GanttTaskBar({
   const persistDates = useCallback(
     async (nextStart: Date, nextEnd: Date): Promise<boolean> => {
       try {
-        await updateTask({
-          ...task,
-          startDate: toIsoDay(nextStart),
-          dueDate: toIsoDay(nextEnd),
-        });
+        if (onPersistDates) {
+          await onPersistDates(task, toIsoDay(nextStart), toIsoDay(nextEnd));
+        } else {
+          await updateTask({
+            ...task,
+            startDate: toIsoDay(nextStart),
+            dueDate: toIsoDay(nextEnd),
+          });
+        }
         return true;
       } catch (error) {
         toast.error(
@@ -105,7 +116,7 @@ export function GanttTaskBar({
         return false;
       }
     },
-    [task, updateTask, t],
+    [task, updateTask, onPersistDates, t],
   );
 
   const pxPerDay = Math.max(pixelsPerDay, 1e-6);

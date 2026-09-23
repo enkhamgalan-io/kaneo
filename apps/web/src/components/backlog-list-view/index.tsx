@@ -32,18 +32,27 @@ import useBacklogBulkSelectionStore from "@/store/backlog-bulk-selection";
 import useProjectStore from "@/store/project";
 import type { ProjectWithTasks } from "@/types/project";
 import type Task from "@/types/task";
+import {
+  type CrossProjectBacklog,
+  keepInPlaceSortingStrategy,
+} from "../board/cross-project";
 import BacklogBulkToolbar from "../bulk-selection/backlog-bulk-toolbar";
 import CreateTaskModal from "../shared/modals/create-task-modal";
+import { useTaskProject } from "../task/task-projects-context";
 import BacklogTaskRow from "./backlog-task-row";
 
 type BacklogListViewProps = {
   project?: ProjectWithTasks;
   disableDragDrop?: boolean;
+  // Set for a backlog that mixes projects: a drop between the two sections
+  // changes status only, and nothing is reordered.
+  crossProject?: CrossProjectBacklog;
 };
 
 function BacklogListView({
   project,
   disableDragDrop = false,
+  crossProject,
 }: BacklogListViewProps) {
   const { t } = useTranslation();
   const { mutate: updateTask } = useUpdateTask();
@@ -106,11 +115,16 @@ function BacklogListView({
       },
       Enter: () => {
         if (focusedTaskId && project) {
+          // The task's own project: a merged backlog has no single one.
+          const focusedTask = [
+            ...(project.plannedTasks || []),
+            ...(project.archivedTasks || []),
+          ].find((task) => task.id === focusedTaskId);
           navigate({
             to: "/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId",
             params: {
               workspaceId: project.workspaceId,
-              projectId: project.id,
+              projectId: focusedTask?.projectId ?? project.id,
               taskId: focusedTaskId,
             },
           });
@@ -188,6 +202,17 @@ function BacklogListView({
       } else {
         return;
       }
+    }
+
+    if (crossProject) {
+      // Same section is a no-op: there is no order to save across projects.
+      if (
+        activeTask.status !== targetSection &&
+        (targetSection === "planned" || targetSection === "archived")
+      ) {
+        crossProject.onMoveTask(activeTask, targetSection);
+      }
+      return;
     }
 
     const updatedProject = produce(project, (draft) => {
@@ -346,10 +371,14 @@ function BacklogListView({
           </button>
 
           <div className="flex items-center gap-1">
-            {showAddButton && (
+            {showAddButton && (!crossProject || crossProject.onCreateTask) && (
               <button
                 type="button"
                 onClick={() => {
+                  if (crossProject?.onCreateTask) {
+                    crossProject.onCreateTask();
+                    return;
+                  }
                   setIsTaskModalOpen(true);
                   setActiveColumn("planned");
                 }}
@@ -369,7 +398,11 @@ function BacklogListView({
           >
             <SortableContext
               items={tasks}
-              strategy={verticalListSortingStrategy}
+              strategy={
+                crossProject
+                  ? keepInPlaceSortingStrategy
+                  : verticalListSortingStrategy
+              }
             >
               <AnimatePresence initial={false} mode="popLayout">
                 {tasks.map((task) => (
@@ -401,16 +434,18 @@ function BacklogListView({
     );
   }
 
+  const activeTask =
+    project?.plannedTasks.find((task) => task.id === activeId) ||
+    project?.archivedTasks.find((task) => task.id === activeId);
+  // The dragged row's own project, for its key prefix in the overlay.
+  const activeTaskProject = useTaskProject(activeTask?.projectId);
+
   if (!project) {
     return null;
   }
 
   const plannedTasks = project.plannedTasks || [];
   const archivedTasks = project.archivedTasks || [];
-
-  const activeTask =
-    project.plannedTasks.find((task) => task.id === activeId) ||
-    project.archivedTasks.find((task) => task.id === activeId);
 
   return (
     <DndContext
@@ -458,7 +493,8 @@ function BacklogListView({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] font-mono text-muted-foreground">
-                    {project?.slug}-{activeTask.number}
+                    {activeTaskProject?.slug ?? project?.slug}-
+                    {activeTask.number}
                   </span>
                   <span className="text-xs text-foreground truncate">
                     {activeTask.title}
@@ -477,7 +513,7 @@ function BacklogListView({
         status={activeColumn ?? "planned"}
       />
 
-      <BacklogBulkToolbar />
+      <BacklogBulkToolbar getSharedColumns={crossProject?.getSharedColumns} />
     </DndContext>
   );
 }

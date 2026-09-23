@@ -1,4 +1,5 @@
 import {
+  type CollisionDetection,
   closestCorners,
   DndContext,
   type DragEndEvent,
@@ -22,7 +23,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { produce } from "immer";
 import { Archive, ChevronRight, Flag, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { priorityColorsTaskCard } from "@/constants/priority-colors";
 import { useUpdateTask } from "@/hooks/mutations/task/use-update-task";
@@ -33,17 +34,30 @@ import { toast } from "@/lib/toast";
 import useBulkSelectionStore from "@/store/bulk-selection";
 import useProjectStore from "@/store/project";
 import type { ProjectWithTasks } from "@/types/project";
+import {
+  type CrossProjectBoard,
+  crossProjectCollision,
+  keepInPlaceSortingStrategy,
+} from "../board/cross-project";
 import BulkToolbar from "../bulk-selection/bulk-toolbar";
 import { ArchiveTasksModal } from "../shared/modals/archive-tasks-modal";
 import CreateTaskModal from "../shared/modals/create-task-modal";
+import { useTaskProject } from "../task/task-projects-context";
 import TaskRow from "./task-row";
 
 type ListViewProps = {
   project: ProjectWithTasks;
   disableDragDrop?: boolean;
+  // Set for a list whose sections merge several projects: drags change status
+  // only, and only to a section the row's own project has.
+  crossProject?: CrossProjectBoard;
 };
 
-function ListView({ project, disableDragDrop = false }: ListViewProps) {
+function ListView({
+  project,
+  disableDragDrop = false,
+  crossProject,
+}: ListViewProps) {
   const { t } = useTranslation();
   const { setProject } = useProjectStore();
   const {
@@ -106,11 +120,15 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
       },
       Enter: () => {
         if (focusedTaskId && project) {
+          // The task's own project: a merged list has no single one.
+          const focusedTask = project.columns
+            ?.flatMap((column) => column.tasks)
+            .find((task) => task.id === focusedTaskId);
           navigate({
             to: "/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId",
             params: {
               workspaceId: project.workspaceId,
-              projectId: project.id,
+              projectId: focusedTask?.projectId ?? project.id,
               taskId: focusedTaskId,
             },
           });
@@ -160,6 +178,14 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
     }
   };
 
+  const collisionDetection: CollisionDetection = useMemo(
+    () =>
+      crossProject && project?.columns
+        ? crossProjectCollision(project.columns, crossProject)
+        : closestCorners,
+    [crossProject, project?.columns],
+  );
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -169,6 +195,26 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
 
     const activeTaskId = active.id.toString();
     const overId = over.id.toString();
+
+    if (crossProject) {
+      const sourceColumn = project.columns.find((column) =>
+        column.tasks.some((task) => task.id === activeTaskId),
+      );
+      const destinationColumn = project.columns.find(
+        (column) =>
+          column.id === overId ||
+          column.tasks.some((task) => task.id === overId),
+      );
+      const task = sourceColumn?.tasks.find((t) => t.id === activeTaskId);
+      // Same section is a no-op: there is no order to save on a merged list.
+      if (!task || !destinationColumn || sourceColumn === destinationColumn) {
+        return;
+      }
+      if (crossProject.canMoveTo(task, destinationColumn.slug)) {
+        crossProject.onMoveTask(task, destinationColumn.slug);
+      }
+      return;
+    }
 
     const updatedProject = produce(project, (draft) => {
       const sourceColumn = draft?.columns?.find((col) =>
@@ -245,14 +291,30 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
     }));
   };
 
+  // On a merged list only the tasks whose own project marks the section final
+  // may be archived; a single project's final section archives them all.
+  const getArchivableTasks = (column: ProjectWithTasks["columns"][number]) =>
+    crossProject
+      ? crossProject.getArchivableTasks(column.tasks)
+      : column.isFinal
+        ? column.tasks
+        : [];
+
   const handleArchiveClick = (column: ProjectWithTasks["columns"][number]) => {
-    if (!column.isFinal || column.tasks.length === 0) return;
+    if (getArchivableTasks(column).length === 0) return;
     setColumnToArchive(column);
     setIsArchiveModalOpen(true);
   };
 
   const handleConfirmArchive = () => {
     if (!columnToArchive) return;
+
+    if (crossProject) {
+      crossProject.onArchiveTasks(getArchivableTasks(columnToArchive));
+      setIsArchiveModalOpen(false);
+      setColumnToArchive(null);
+      return;
+    }
 
     const updatedProject = produce(project, (draft) => {
       const archivedColumn = draft?.columns?.find(
@@ -279,6 +341,14 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
     setColumnToArchive(null);
   };
 
+  const activeTask = activeId
+    ? project?.columns
+        ?.flatMap((col) => col.tasks)
+        .find((task) => task.id === activeId)
+    : null;
+  // The dragged row's own project, for its key prefix in the overlay.
+  const activeTaskProject = useTaskProject(activeTask?.projectId);
+
   function ColumnSection({
     column,
   }: {
@@ -293,12 +363,21 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
     });
 
     const showDropIndicator = activeId && overColumnId === column.id;
+    const isDropDisabled = Boolean(
+      crossProject &&
+        activeTask &&
+        !crossProject.canMoveTo(activeTask, column.slug),
+    );
+    const canCreateHere = crossProject
+      ? Boolean(crossProject.onCreateTask)
+      : true;
 
     return (
       <div
         className={cn(
-          "border-b border-border/50 transition-colors duration-150 overflow-auto",
+          "border-b border-border/50 transition-[background-color,opacity] duration-150 overflow-auto",
           showDropIndicator && "border-l-4 border-l-ring bg-accent/35",
+          isDropDisabled && "opacity-45",
         )}
       >
         <div className="flex items-center justify-between py-2 px-4 bg-muted/60 border-b border-border/50">
@@ -325,19 +404,25 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
           </button>
 
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                setIsTaskModalOpen(true);
-                setActiveColumn(column.id);
-              }}
-              className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
-              title={t("tasks:listView.addTask")}
-            >
-              <Plus className="w-3 h-3" />
-            </button>
+            {canCreateHere && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (crossProject?.onCreateTask) {
+                    crossProject.onCreateTask(column.slug);
+                    return;
+                  }
+                  setIsTaskModalOpen(true);
+                  setActiveColumn(column.id);
+                }}
+                className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors"
+                title={t("tasks:listView.addTask")}
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            )}
 
-            {column.isFinal && column.tasks.length > 0 && (
+            {getArchivableTasks(column).length > 0 && (
               <button
                 type="button"
                 onClick={() => handleArchiveClick(column)}
@@ -357,7 +442,11 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
           >
             <SortableContext
               items={column.tasks}
-              strategy={verticalListSortingStrategy}
+              strategy={
+                crossProject
+                  ? keepInPlaceSortingStrategy
+                  : verticalListSortingStrategy
+              }
             >
               <AnimatePresence initial={false} mode="popLayout">
                 {column.tasks.map((task) => (
@@ -389,16 +478,10 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
     return null;
   }
 
-  const activeTask = activeId
-    ? project.columns
-        ?.flatMap((col) => col.tasks)
-        .find((task) => task.id === activeId)
-    : null;
-
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -430,7 +513,8 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] font-mono text-muted-foreground">
-                    {project?.slug}-{activeTask.number}
+                    {activeTaskProject?.slug ?? project?.slug}-
+                    {activeTask.number}
                   </span>
                   <span className="text-xs text-foreground truncate">
                     {activeTask.title}
@@ -455,10 +539,12 @@ function ListView({ project, disableDragDrop = false }: ListViewProps) {
           setColumnToArchive(null);
         }}
         onConfirm={handleConfirmArchive}
-        taskCount={columnToArchive?.tasks.length ?? 0}
+        taskCount={
+          columnToArchive ? getArchivableTasks(columnToArchive).length : 0
+        }
       />
 
-      <BulkToolbar />
+      <BulkToolbar getSharedColumns={crossProject?.getSharedColumns} />
     </DndContext>
   );
 }

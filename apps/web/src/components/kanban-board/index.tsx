@@ -1,4 +1,5 @@
 import {
+  type CollisionDetection,
   closestCorners,
   DndContext,
   type DragEndEvent,
@@ -16,12 +17,16 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { produce } from "immer";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUpdateTask } from "@/hooks/mutations/task/use-update-task";
 import { useRegisterShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import useBulkSelectionStore from "@/store/bulk-selection";
 import useProjectStore from "@/store/project";
 import type { ProjectWithTasks } from "@/types/project";
+import {
+  type CrossProjectBoard,
+  crossProjectCollision,
+} from "../board/cross-project";
 import BulkToolbar from "../bulk-selection/bulk-toolbar";
 import Column from "./column";
 import TaskCard from "./task-card";
@@ -29,9 +34,16 @@ import TaskCard from "./task-card";
 type KanbanBoardProps = {
   project: ProjectWithTasks;
   disableDragDrop?: boolean;
+  // Set for a board whose columns merge several projects: drags change status
+  // only, and only to a column the card's own project has.
+  crossProject?: CrossProjectBoard;
 };
 
-function KanbanBoard({ project, disableDragDrop = false }: KanbanBoardProps) {
+function KanbanBoard({
+  project,
+  disableDragDrop = false,
+  crossProject,
+}: KanbanBoardProps) {
   const queryClient = useQueryClient();
   const { setProject } = useProjectStore();
   const {
@@ -76,11 +88,15 @@ function KanbanBoard({ project, disableDragDrop = false }: KanbanBoardProps) {
       },
       Enter: () => {
         if (focusedTaskId && project) {
+          // The task's own project: a merged board has no single one.
+          const focusedTask = project.columns
+            ?.flatMap((column) => column.tasks)
+            .find((task) => task.id === focusedTaskId);
           navigate({
             to: "/dashboard/workspace/$workspaceId/project/$projectId/task/$taskId",
             params: {
               workspaceId: project.workspaceId,
-              projectId: project.id,
+              projectId: focusedTask?.projectId ?? project.id,
               taskId: focusedTaskId,
             },
           });
@@ -118,6 +134,14 @@ function KanbanBoard({ project, disableDragDrop = false }: KanbanBoardProps) {
     setActiveId(event.active.id);
   };
 
+  const collisionDetection: CollisionDetection = useMemo(
+    () =>
+      crossProject && project?.columns
+        ? crossProjectCollision(project.columns, crossProject)
+        : closestCorners,
+    [crossProject, project?.columns],
+  );
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -126,6 +150,26 @@ function KanbanBoard({ project, disableDragDrop = false }: KanbanBoardProps) {
 
     const activeId = active.id.toString();
     const overId = over.id.toString();
+
+    if (crossProject) {
+      const sourceColumn = project.columns.find((column) =>
+        column.tasks.some((task) => task.id === activeId),
+      );
+      const destinationColumn = project.columns.find(
+        (column) =>
+          column.id === overId ||
+          column.tasks.some((task) => task.id === overId),
+      );
+      const task = sourceColumn?.tasks.find((t) => t.id === activeId);
+      // Same column is a no-op: there is no order to save on a merged board.
+      if (!task || !destinationColumn || sourceColumn === destinationColumn) {
+        return;
+      }
+      if (crossProject.canMoveTo(task, destinationColumn.slug)) {
+        crossProject.onMoveTask(task, destinationColumn.slug);
+      }
+      return;
+    }
 
     const updatedProject = produce(project, (draft) => {
       const sourceColumn = draft?.columns?.find((col) =>
@@ -244,7 +288,7 @@ function KanbanBoard({ project, disableDragDrop = false }: KanbanBoardProps) {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -256,7 +300,16 @@ function KanbanBoard({ project, disableDragDrop = false }: KanbanBoardProps) {
                 key={column.id}
                 className="h-full max-w-96 min-w-80 shrink-0 flex-1"
               >
-                <Column column={column} disableDragDrop={disableDragDrop} />
+                <Column
+                  column={column}
+                  disableDragDrop={disableDragDrop}
+                  crossProject={crossProject}
+                  isDropDisabled={Boolean(
+                    crossProject &&
+                      activeTask &&
+                      !crossProject.canMoveTo(activeTask, column.slug),
+                  )}
+                />
               </div>
             ))}
           </div>
@@ -272,7 +325,7 @@ function KanbanBoard({ project, disableDragDrop = false }: KanbanBoardProps) {
         ) : null}
       </DragOverlay>
 
-      <BulkToolbar />
+      <BulkToolbar getSharedColumns={crossProject?.getSharedColumns} />
     </DndContext>
   );
 }

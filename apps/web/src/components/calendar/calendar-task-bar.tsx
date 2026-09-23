@@ -8,6 +8,9 @@ export type CalendarTask = PackableTask & {
   title: string;
   number: number | null;
   status: string;
+  // Set when one calendar mixes projects (a member's tasks); a single-project
+  // calendar passes one `projectSlug` for every bar instead.
+  projectSlug?: string;
 };
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -48,10 +51,9 @@ export default function CalendarTaskBar({
     continuesAfter,
   } = segment;
 
+  const slug = task.projectSlug ?? projectSlug;
   const taskKey =
-    projectSlug && task.number != null
-      ? `${projectSlug}-${task.number}`
-      : undefined;
+    slug && task.number != null ? `${slug}-${task.number}` : undefined;
 
   const range = `${formatDateShort(task.scheduleStart)} – ${formatDateShort(
     task.scheduleEnd,

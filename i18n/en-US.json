@@ -1455,6 +1455,12 @@
 			"more": "More",
 			"backToBoard": "Back to board"
 		},
+		"views": {
+			"label": "View",
+			"overview": "Overview",
+			"backlog": "Backlog",
+			"gantt": "Gantt"
+		},
 		"projectList": {
 			"viewProject": "View Project",
 			"shareProject": "Share Project",
@@ -2120,7 +2126,8 @@
 			"actions": "Actions",
 			"searchActions": "Search actions...",
 			"noActionsFound": "No actions found.",
-			"changeStatus": "Change Status"
+			"changeStatus": "Change Status",
+			"noSharedStatus": "The selected tasks' projects share no status"
 		},
 		"editor": {
 			"table": {
@@ -2292,6 +2299,10 @@
 			"loadErrorDescription": "Something went wrong while loading this member's tasks. Try again in a moment.",
 			"emptyTitle": "No tasks assigned",
 			"emptyDescription": "{{name}} has no tasks assigned in this workspace yet.",
+			"allArchivedTitle": "All tasks are in archived projects",
+			"allArchivedDescription": "{{name}}'s tasks are all in archived projects, which only the Overview lists.",
+			"partialLoadError_one": "Tasks from {{count}} project couldn't be loaded.",
+			"partialLoadError_other": "Tasks from {{count}} projects couldn't be loaded.",
 			"summary": {
 				"total": "Total",
 				"open": "Open",

@@ -28,8 +28,8 @@ import { getInitials } from "@/lib/get-initials";
 import { getPriorityLabel } from "@/lib/i18n/domain";
 import { getPriorityIcon } from "@/lib/priority";
 import { toast } from "@/lib/toast";
-import useProjectStore from "@/store/project";
 import type Task from "@/types/task";
+import { useTaskProject } from "../../task/task-projects-context";
 
 type TaskCardContext = {
   worskpaceId: string;
@@ -48,11 +48,17 @@ export default function TaskCardContextMenuContent({
   onDeleteClick,
 }: TaskCardContextMenuContentProps) {
   const { t } = useTranslation();
-  const { project } = useProjectStore();
-  const { data: columnsData = [] } = useGetColumns(taskCardContext.projectId);
+  // Status options come from the task's own project. The loaded project is
+  // only used when it really is that project; otherwise its columns would be
+  // offered for a task whose project may not have them.
+  const project = useTaskProject(task.projectId);
+  const loadedProject = project?.id === task.projectId ? project : undefined;
+  const { data: columnsData = [] } = useGetColumns(
+    loadedProject ? "" : taskCardContext.projectId,
+  );
   const columns =
-    project?.columns && project.columns.length > 0
-      ? project.columns.map((col) => ({
+    loadedProject?.columns && loadedProject.columns.length > 0
+      ? loadedProject.columns.map((col) => ({
           slug: col.id,
           name: col.name,
           icon: col.icon,
@@ -124,12 +130,11 @@ export default function TaskCardContextMenuContent({
             [field]: value,
           });
       }
+      toast.success(t("tasks:update.success"));
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t("tasks:update.error"),
       );
-    } finally {
-      toast.success(t("tasks:update.success"));
     }
   };
 

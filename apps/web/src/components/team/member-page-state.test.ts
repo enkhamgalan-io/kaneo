@@ -8,7 +8,6 @@ const settled = {
   canViewTasks: true,
   isPending: false,
   errorStatus: undefined,
-  hasError: false,
   hasData: true,
 };
 
@@ -68,7 +67,7 @@ describe("resolveMemberPageState", () => {
   });
 
   it("maps the API's answers to distinct states", () => {
-    const failed = { ...settled, hasError: true, hasData: false };
+    const failed = { ...settled, hasData: false };
     expect(resolveMemberPageState({ ...failed, errorStatus: 403 })).toBe(
       "no-permission",
     );
@@ -81,6 +80,26 @@ describe("resolveMemberPageState", () => {
     // A network failure never produced a status at all.
     expect(resolveMemberPageState({ ...failed, errorStatus: undefined })).toBe(
       "load-error",
+    );
+  });
+
+  it("keeps the last good data when a background refetch fails", () => {
+    const refetchFailed = { ...settled, hasData: true };
+    expect(resolveMemberPageState({ ...refetchFailed, errorStatus: 500 })).toBe(
+      "ready",
+    );
+    expect(
+      resolveMemberPageState({ ...refetchFailed, errorStatus: undefined }),
+    ).toBe("ready");
+  });
+
+  it("still blocks on a definitive answer from a refetch", () => {
+    const refetchFailed = { ...settled, hasData: true };
+    expect(resolveMemberPageState({ ...refetchFailed, errorStatus: 403 })).toBe(
+      "no-permission",
+    );
+    expect(resolveMemberPageState({ ...refetchFailed, errorStatus: 404 })).toBe(
+      "not-found",
     );
   });
 });

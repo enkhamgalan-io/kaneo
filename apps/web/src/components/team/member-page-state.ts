@@ -15,7 +15,6 @@ type MemberPageInput = {
   // (no data yet) cannot mean a query that will never run.
   isPending: boolean;
   errorStatus: number | undefined;
-  hasError: boolean;
   hasData: boolean;
 };
 
@@ -31,8 +30,13 @@ export function resolveMemberPageState(
   // Also covers a membership lookup that never ran: the API would refuse too.
   if (!input.canViewTasks) return "no-permission";
   if (input.isPending) return "loading";
+  // 403 and 404 are answers, even on a background refetch: access was revoked
+  // or the member left the workspace.
   if (input.errorStatus === 403) return "no-permission";
   if (input.errorStatus === 404) return "not-found";
-  if (input.hasError || !input.hasData) return "load-error";
+  // Any other failure only matters without data. A failed refetch keeps the
+  // last good summary, so the views (and any open dialog) stay put instead of
+  // being swapped for an error panel.
+  if (!input.hasData) return "load-error";
   return "ready";
 }

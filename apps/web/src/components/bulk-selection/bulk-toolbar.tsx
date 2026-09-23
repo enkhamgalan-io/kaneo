@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import type { GetSharedColumns } from "@/components/board/cross-project";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -65,7 +66,13 @@ type BulkActionGroup = {
   items: BulkActionItem[];
 };
 
-function BulkToolbar() {
+type BulkToolbarProps = {
+  // Set on a board that mixes projects; otherwise the loaded project's
+  // columns are offered.
+  getSharedColumns?: GetSharedColumns;
+};
+
+function BulkToolbar({ getSharedColumns }: BulkToolbarProps = {}) {
   const { t } = useTranslation();
   const { selectedTaskIds, clearSelection, selectAll } =
     useBulkSelectionStore();
@@ -81,6 +88,13 @@ function BulkToolbar() {
     [],
   );
   const { project } = useProjectStore();
+  const statusColumns = useMemo(
+    () =>
+      getSharedColumns
+        ? getSharedColumns(Array.from(selectedTaskIds))
+        : (project?.columns ?? []),
+    [getSharedColumns, selectedTaskIds, project?.columns],
+  );
   const {
     bulkMoveToBacklog,
     bulkDelete,
@@ -301,11 +315,13 @@ function BulkToolbar() {
         ],
       });
     }
-    if (canEdit) {
+    // Hidden rather than empty when the selected tasks' projects (on a board
+    // that mixes them) share no status.
+    if (canEdit && statusColumns.length > 0) {
       groups.push({
         value: "status",
         label: t("tasks:bulk.changeStatus"),
-        items: (project?.columns ?? []).map((col) => ({
+        items: statusColumns.map((col) => ({
           value: `status-${col.id}`,
           label: col.name,
           icon: getColumnIcon(col.id, col.isFinal, col.icon),
@@ -380,7 +396,7 @@ function BulkToolbar() {
     canDelete,
     canAssign,
     canEditLabels,
-    project?.columns,
+    statusColumns,
     workspaceUsers?.members,
     uniqueLabels,
     handleBulkDelete,

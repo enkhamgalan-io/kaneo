@@ -1,12 +1,7 @@
-import {
-  CalendarDays,
-  CalendarRange,
-  Check,
-  Menu,
-  Plus,
-  SquareKanban,
-} from "lucide-react";
+import { Check, Menu, Plus } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { ViewGrid } from "@/components/common/header/view-switcher";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -20,11 +15,7 @@ import { cn } from "@/lib/cn";
 type MobileProjectNavProps = {
   workspaceId: string;
   projectId: string;
-  activeView: "backlog" | "board" | "calendar" | "gantt";
-  onSelectBoard: () => void;
-  onSelectBacklog: () => void;
-  onSelectCalendar: () => void;
-  onSelectGantt: () => void;
+  viewTabs: ReactNode;
   onSelectProject: (projectId: string) => void;
   onAddProject: () => void;
 };
@@ -32,11 +23,7 @@ type MobileProjectNavProps = {
 export default function MobileProjectNav({
   workspaceId,
   projectId,
-  activeView,
-  onSelectBoard,
-  onSelectBacklog,
-  onSelectCalendar,
-  onSelectGantt,
+  viewTabs,
   onSelectProject,
   onAddProject,
 }: MobileProjectNavProps) {
@@ -51,6 +38,7 @@ export default function MobileProjectNav({
             variant="ghost"
             size="icon-xs"
             className="size-7 border border-transparent"
+            aria-label={t("navigation:views.label")}
           />
         }
       >
@@ -58,64 +46,7 @@ export default function MobileProjectNav({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-2">
         <div className="space-y-3">
-          <div className="space-y-1">
-            <p className="px-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-              View
-            </p>
-            <div className="grid grid-cols-4 gap-1">
-              <button
-                type="button"
-                onClick={onSelectBacklog}
-                className={cn(
-                  "flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
-                  activeView === "backlog"
-                    ? "border-border bg-secondary text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-accent",
-                )}
-              >
-                Backlog
-              </button>
-              <button
-                type="button"
-                onClick={onSelectBoard}
-                className={cn(
-                  "flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
-                  activeView === "board"
-                    ? "border-border bg-secondary text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-accent",
-                )}
-              >
-                <SquareKanban className="size-3.5" />
-                Board
-              </button>
-              <button
-                type="button"
-                onClick={onSelectCalendar}
-                className={cn(
-                  "flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
-                  activeView === "calendar"
-                    ? "border-border bg-secondary text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-accent",
-                )}
-              >
-                <CalendarRange className="size-3.5" />
-                {t("tasks:calendar.title")}
-              </button>
-              <button
-                type="button"
-                onClick={onSelectGantt}
-                className={cn(
-                  "flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
-                  activeView === "gantt"
-                    ? "border-border bg-secondary text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-accent",
-                )}
-              >
-                <CalendarDays className="size-3.5" />
-                Gantt
-              </button>
-            </div>
-          </div>
+          <ViewGrid>{viewTabs}</ViewGrid>
 
           <div className="space-y-1">
             <p className="px-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">

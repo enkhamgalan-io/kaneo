@@ -16,6 +16,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import type { GetSharedColumns } from "@/components/board/cross-project";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -72,7 +73,15 @@ type BacklogActionGroup = {
   items: BacklogActionItem[];
 };
 
-function BacklogBulkToolbar() {
+type BacklogBulkToolbarProps = {
+  // Set on a backlog that mixes projects; otherwise the loaded project's
+  // columns are offered as "Move to board" targets.
+  getSharedColumns?: GetSharedColumns;
+};
+
+function BacklogBulkToolbar({
+  getSharedColumns,
+}: BacklogBulkToolbarProps = {}) {
   const { t } = useTranslation();
   const { selectedTaskIds, clearSelection, selectAll } =
     useBacklogBulkSelectionStore();
@@ -88,6 +97,13 @@ function BacklogBulkToolbar() {
     [],
   );
   const { project } = useProjectStore();
+  const boardColumns = useMemo(
+    () =>
+      getSharedColumns
+        ? getSharedColumns(Array.from(selectedTaskIds))
+        : (project?.columns ?? []),
+    [getSharedColumns, selectedTaskIds, project?.columns],
+  );
   const {
     bulkMoveToBoard,
     bulkDelete,
@@ -397,7 +413,14 @@ function BacklogBulkToolbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-48">
-                  {(project?.columns ?? []).map((col) => (
+                  {/* A mixed-project selection whose projects share no
+                      column: say so rather than open an empty menu. */}
+                  {boardColumns.length === 0 ? (
+                    <DropdownMenuItem disabled>
+                      {t("tasks:bulk.noSharedStatus")}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {boardColumns.map((col) => (
                     <DropdownMenuItem
                       key={col.id}
                       onClick={() => handleMoveToBoard(col.id)}

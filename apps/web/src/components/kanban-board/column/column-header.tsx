@@ -9,13 +9,15 @@ import { getColumnIcon } from "@/lib/column";
 import { toast } from "@/lib/toast";
 import useProjectStore from "@/store/project";
 import type { ProjectWithTasks } from "@/types/project";
+import type { CrossProjectBoard } from "../../board/cross-project";
 import { ArchiveTasksModal } from "../../shared/modals/archive-tasks-modal";
 
 type ColumnHeaderProps = {
   column: ProjectWithTasks["columns"][number];
+  crossProject?: CrossProjectBoard;
 };
 
-export function ColumnHeader({ column }: ColumnHeaderProps) {
+export function ColumnHeader({ column, crossProject }: ColumnHeaderProps) {
   const { t } = useTranslation();
   const { project, setProject } = useProjectStore();
   const { mutate: updateTask } = useUpdateTask();
@@ -26,7 +28,23 @@ export function ColumnHeader({ column }: ColumnHeaderProps) {
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
+  // On a merged board only the tasks whose own project marks this column
+  // final may be archived; a single project's final column archives them all.
+  const archivableTasks = crossProject
+    ? crossProject.getArchivableTasks(column.tasks)
+    : column.isFinal
+      ? column.tasks
+      : [];
+  const canCreateHere = crossProject
+    ? Boolean(crossProject.onCreateTask)
+    : true;
+
   const handleConfirmArchive = () => {
+    if (crossProject) {
+      crossProject.onArchiveTasks(archivableTasks);
+      setIsArchiveModalOpen(false);
+      return;
+    }
     if (!column.isFinal || !project) return;
 
     const updatedProject = produce(project, (draft) => {
@@ -65,7 +83,7 @@ export function ColumnHeader({ column }: ColumnHeaderProps) {
       </div>
 
       <div className="flex items-center">
-        {canTask && column.isFinal && column.tasks.length > 0 && (
+        {canTask && archivableTasks.length > 0 && (
           <button
             type="button"
             onClick={() => setIsArchiveModalOpen(true)}
@@ -75,10 +93,14 @@ export function ColumnHeader({ column }: ColumnHeaderProps) {
             <Archive className="w-4 h-4 text-muted-foreground" />
           </button>
         )}
-        {canCreate && (
+        {canCreate && canCreateHere && (
           <button
             type="button"
-            onClick={() => setIsTaskModalOpen(true)}
+            onClick={() =>
+              crossProject?.onCreateTask
+                ? crossProject.onCreateTask(column.slug)
+                : setIsTaskModalOpen(true)
+            }
             className="flex items-center rounded-md px-2 py-1 text-left text-muted-foreground transition-colors hover:bg-accent/50"
             title={t("tasks:kanban.addTask")}
           >
@@ -98,7 +120,7 @@ export function ColumnHeader({ column }: ColumnHeaderProps) {
         open={isArchiveModalOpen}
         onClose={() => setIsArchiveModalOpen(false)}
         onConfirm={handleConfirmArchive}
-        taskCount={column.tasks.length}
+        taskCount={archivableTasks.length}
       />
     </div>
   );

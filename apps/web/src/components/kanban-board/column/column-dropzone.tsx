@@ -6,17 +6,20 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect } from "react";
 import type { ProjectWithTasks } from "@/types/project";
+import { keepInPlaceSortingStrategy } from "../../board/cross-project";
 import TaskCard from "../task-card";
 
 type ColumnDropzoneProps = {
   column: ProjectWithTasks["columns"][number];
   disableDragDrop?: boolean;
+  disableReorder?: boolean;
   onIsOverChange?: (isOver: boolean) => void;
 };
 
 export function ColumnDropzone({
   column,
   disableDragDrop = false,
+  disableReorder = false,
   onIsOverChange,
 }: ColumnDropzoneProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -37,7 +40,11 @@ export function ColumnDropzone({
     <div ref={setNodeRef} className="flex-1 min-h-0">
       <SortableContext
         items={column.tasks}
-        strategy={verticalListSortingStrategy}
+        strategy={
+          disableReorder
+            ? keepInPlaceSortingStrategy
+            : verticalListSortingStrategy
+        }
       >
         <div className="flex flex-col gap-2">
           <AnimatePresence initial={false} mode="popLayout">

@@ -40,11 +40,11 @@ import { getInitials } from "@/lib/get-initials";
 import { getPriorityIcon } from "@/lib/priority";
 import { toast } from "@/lib/toast";
 import useBulkSelectionStore from "@/store/bulk-selection";
-import useProjectStore from "@/store/project";
 import { useUserPreferencesStore } from "@/store/user-preferences";
 import type Task from "@/types/task";
 import TaskCardContextMenuContent from "../kanban-board/task-card-context-menu/task-card-context-menu-content";
 import { TaskLabels } from "../kanban-board/task-labels";
+import { useTaskProject } from "../task/task-projects-context";
 import { ContextMenu, ContextMenuTrigger } from "../ui/context-menu";
 
 type TaskRowProps = {
@@ -64,8 +64,10 @@ function TaskRow({ task, projectSlug }: TaskRowProps) {
     isDragging,
   } = useSortable({ id: task.id });
 
-  const { project } = useProjectStore();
+  const project = useTaskProject(task.projectId);
   const taskIsCompleted = isTaskCompleted(task.status, project?.columns);
+  // A list that mixes projects has no single slug to pass down.
+  const slug = project?.slug ?? projectSlug;
   const { data: workspace } = useActiveWorkspace();
   const {
     showAssignees,
@@ -204,7 +206,7 @@ function TaskRow({ task, projectSlug }: TaskRowProps) {
             )}
             {showTaskNumbers && (
               <div className="text-xs font-mono text-muted-foreground flex-shrink-0">
-                {projectSlug}-{task.number}
+                {slug}-{task.number}
               </div>
             )}
 

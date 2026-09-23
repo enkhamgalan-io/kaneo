@@ -69,6 +69,12 @@ type CreateTaskModalProps = {
   onClose: () => void;
   status?: string;
   projectId?: string;
+  // Pre-fills the assignee, e.g. with the member whose page this opens from,
+  // so the new task shows up there.
+  defaultAssigneeId?: string;
+  // Limits the project picker, e.g. to projects that have the column the task
+  // is being created in. Without it every workspace project is offered.
+  allowedProjectIds?: string[];
 };
 
 type Priority = "no-priority" | "low" | "medium" | "high" | "urgent";
@@ -121,6 +127,8 @@ function CreateTaskModal({
   onClose,
   status,
   projectId,
+  defaultAssigneeId,
+  allowedProjectIds,
 }: CreateTaskModalProps) {
   const { t } = useTranslation();
   const { project, setProject } = useProjectStore();
@@ -195,7 +203,14 @@ function CreateTaskModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>("no-priority");
-  const [assigneeId, setAssigneeId] = useState("");
+  const initialAssigneeId = defaultAssigneeId ?? "";
+  const [assigneeId, setAssigneeId] = useState(initialAssigneeId);
+
+  // The modal stays mounted between opens, so a new default (another member's
+  // page) has to replace the old one explicitly.
+  useEffect(() => {
+    setAssigneeId(initialAssigneeId);
+  }, [initialAssigneeId]);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [createMore, setCreateMore] = useState(false);
@@ -213,8 +228,15 @@ function CreateTaskModal({
     location.pathname.match(/\/project\/([^/]+)/)?.[1] ?? null;
   const explicitProjectId = projectId || routeProjectId || "";
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  // With a restricted picker the loaded project is not a safe fallback: it may
+  // be one the caller excluded. A single allowed project is picked outright.
+  const fallbackProjectId = allowedProjectIds
+    ? allowedProjectIds.length === 1
+      ? allowedProjectIds[0]
+      : undefined
+    : project?.id;
   const resolvedProjectId =
-    explicitProjectId || selectedProjectId || project?.id || "";
+    explicitProjectId || selectedProjectId || fallbackProjectId || "";
   const { data: workspaceProjects } = useGetProjects({
     workspaceId: workspace?.id || "",
   });
@@ -256,7 +278,7 @@ function CreateTaskModal({
     title.trim() ||
       description.trim() ||
       priority !== "no-priority" ||
-      assigneeId ||
+      assigneeId !== initialAssigneeId ||
       startDate ||
       dueDate ||
       selectedProjectId ||
@@ -271,7 +293,7 @@ function CreateTaskModal({
     setTitle("");
     setDescription("");
     setPriority("no-priority");
-    setAssigneeId("");
+    setAssigneeId(initialAssigneeId);
     setStartDate(undefined);
     setDueDate(undefined);
     setSelectedProjectId("");
@@ -475,7 +497,7 @@ function CreateTaskModal({
         setTitle("");
         setDescription("");
         setPriority("no-priority");
-        setAssigneeId("");
+        setAssigneeId(initialAssigneeId);
         setStartDate(undefined);
         setDueDate(undefined);
         setLabels([]);
@@ -730,23 +752,29 @@ function CreateTaskModal({
                   </PopoverTrigger>
                   <PopoverContent className="w-48 p-1" align="start">
                     <div className="space-y-1">
-                      {workspaceProjects?.map((workspaceProject) => (
-                        <button
-                          key={workspaceProject.id}
-                          type="button"
-                          className="w-full flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50 text-left transition-colors h-8"
-                          onClick={() =>
-                            setSelectedProjectId(workspaceProject.id)
-                          }
-                        >
-                          <span className="text-sm truncate">
-                            {workspaceProject.name}
-                          </span>
-                          {resolvedProjectId === workspaceProject.id && (
-                            <Check className="ml-auto h-4 w-4 shrink-0" />
-                          )}
-                        </button>
-                      ))}
+                      {workspaceProjects
+                        ?.filter(
+                          (workspaceProject) =>
+                            !allowedProjectIds ||
+                            allowedProjectIds.includes(workspaceProject.id),
+                        )
+                        .map((workspaceProject) => (
+                          <button
+                            key={workspaceProject.id}
+                            type="button"
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50 text-left transition-colors h-8"
+                            onClick={() =>
+                              setSelectedProjectId(workspaceProject.id)
+                            }
+                          >
+                            <span className="text-sm truncate">
+                              {workspaceProject.name}
+                            </span>
+                            {resolvedProjectId === workspaceProject.id && (
+                              <Check className="ml-auto h-4 w-4 shrink-0" />
+                            )}
+                          </button>
+                        ))}
                     </div>
                   </PopoverContent>
                 </Popover>

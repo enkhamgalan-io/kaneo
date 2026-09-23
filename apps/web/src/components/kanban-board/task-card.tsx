@@ -43,9 +43,9 @@ import { getTaskItemStats } from "@/lib/get-task-item-stats";
 import { getPriorityIcon } from "@/lib/priority";
 import { toast } from "@/lib/toast";
 import useBulkSelectionStore from "@/store/bulk-selection";
-import useProjectStore from "@/store/project";
 import { useUserPreferencesStore } from "@/store/user-preferences";
 import type Task from "@/types/task";
+import { useTaskProject } from "../task/task-projects-context";
 import TaskCardContextMenuContent from "./task-card-context-menu/task-card-context-menu-content";
 import { TaskLabels } from "./task-labels";
 
@@ -64,7 +64,7 @@ function TaskCard({ task, disableDragDrop = false }: TaskCardProps) {
     transition,
     isDragging,
   } = useSortable({ id: task.id, disabled: disableDragDrop });
-  const { project } = useProjectStore();
+  const project = useTaskProject(task.projectId);
   const taskIsCompleted = isTaskCompleted(task.status, project?.columns);
   const { data: workspace } = useActiveWorkspace();
   const { mutateAsync: deleteTask } = useDeleteTask();

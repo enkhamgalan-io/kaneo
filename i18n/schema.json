@@ -5269,6 +5269,25 @@
 						"backToBoard"
 					]
 				},
+				"views": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"label": {
+							"type": "string"
+						},
+						"overview": {
+							"type": "string"
+						},
+						"backlog": {
+							"type": "string"
+						},
+						"gantt": {
+							"type": "string"
+						}
+					},
+					"required": ["label", "overview", "backlog", "gantt"]
+				},
 				"projectList": {
 					"type": "object",
 					"additionalProperties": false,
@@ -5592,6 +5611,7 @@
 				"commandPalette",
 				"notifications",
 				"sidebar",
+				"views",
 				"projectList",
 				"search",
 				"settingsLayout",
@@ -8124,6 +8144,9 @@
 						},
 						"changeStatus": {
 							"type": "string"
+						},
+						"noSharedStatus": {
+							"type": "string"
 						}
 					},
 					"required": [
@@ -8147,7 +8170,8 @@
 						"actions",
 						"searchActions",
 						"noActionsFound",
-						"changeStatus"
+						"changeStatus",
+						"noSharedStatus"
 					]
 				},
 				"editor": {
@@ -8860,6 +8884,30 @@
 						"emptyDescription": {
 							"type": "string"
 						},
+						"allArchivedTitle": {
+							"type": "string"
+						},
+						"allArchivedDescription": {
+							"type": "string"
+						},
+						"partialLoadError_one": {
+							"type": "string"
+						},
+						"partialLoadError_zero": {
+							"type": "string"
+						},
+						"partialLoadError_two": {
+							"type": "string"
+						},
+						"partialLoadError_few": {
+							"type": "string"
+						},
+						"partialLoadError_many": {
+							"type": "string"
+						},
+						"partialLoadError_other": {
+							"type": "string"
+						},
 						"summary": {
 							"type": "object",
 							"additionalProperties": false,
@@ -8967,6 +9015,8 @@
 						"loadErrorDescription",
 						"emptyTitle",
 						"emptyDescription",
+						"allArchivedTitle",
+						"allArchivedDescription",
 						"summary",
 						"byState",
 						"projectArchived",
