@@ -1991,6 +1991,21 @@
             ],
             "description": "The GitHub App installation that grants access to the repository."
           },
+          "authMode": {
+            "type": "string"
+          },
+          "hasAccessToken": {
+            "type": "boolean"
+          },
+          "webhookUrl": {
+            "type": "string"
+          },
+          "webhookSecret": {
+            "type": "string"
+          },
+          "webhookRegistered": {
+            "type": "boolean"
+          },
           "branchPattern": {
             "type": "string",
             "description": "Template used to name branches created for a task."
@@ -2046,6 +2061,21 @@
               "null"
             ],
             "description": "The GitHub App installation that grants access to the repository."
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "hasAccessToken": {
+            "type": "boolean"
+          },
+          "webhookUrl": {
+            "type": "string"
+          },
+          "webhookSecret": {
+            "type": "string"
+          },
+          "webhookRegistered": {
+            "type": "boolean"
           },
           "branchPattern": {
             "type": "string",
@@ -2326,6 +2356,213 @@
         ]
       },
       "GiteaImportResult": {
+        "type": "object",
+        "properties": {
+          "imported": {
+            "type": "number"
+          },
+          "updated": {
+            "type": "number",
+            "description": "Existing tasks that were refreshed from their issue."
+          },
+          "skipped": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "imported",
+          "updated",
+          "skipped"
+        ]
+      },
+      "GitlabRepositoryList": {
+        "type": "object",
+        "properties": {
+          "repositories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitlabRepository"
+            }
+          }
+        },
+        "required": [
+          "repositories"
+        ]
+      },
+      "GitlabRepository": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path_with_namespace": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "web_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "path_with_namespace",
+          "visibility",
+          "web_url"
+        ]
+      },
+      "GitlabVerificationResult": {
+        "type": "object",
+        "properties": {
+          "isInstalled": {
+            "type": "boolean"
+          },
+          "hasRequiredPermissions": {
+            "type": "boolean"
+          },
+          "repositoryExists": {
+            "type": "boolean"
+          },
+          "repositoryPrivate": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "missingPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string",
+            "description": "A human-readable summary to show the user."
+          },
+          "failureReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "not_a_gitlab_instance",
+              "redirected",
+              "repository_not_found",
+              null
+            ]
+          }
+        },
+        "required": [
+          "isInstalled",
+          "hasRequiredPermissions",
+          "repositoryExists",
+          "repositoryPrivate",
+          "missingPermissions",
+          "message",
+          "failureReason"
+        ]
+      },
+      "GitlabIntegration": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "Root URL of the GitLab instance."
+          },
+          "repositoryPath": {
+            "type": "string"
+          },
+          "maskedAccessToken": {
+            "type": "string"
+          },
+          "webhookUrl": {
+            "type": "string",
+            "description": "Where GitLab should POST events for this project."
+          },
+          "webhookSecret": {
+            "type": "string",
+            "description": "Only returned to callers with workspace:manage_settings, so the value can be pasted into GitLab."
+          },
+          "branchPattern": {
+            "type": "string"
+          },
+          "commentTaskLinkOnGitlabIssue": {
+            "type": "boolean",
+            "description": "When on, Kaneo comments a link back to the task on the linked GitLab issue."
+          },
+          "isActive": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "baseUrl",
+          "repositoryPath",
+          "maskedAccessToken",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "GitlabIntegrationNotFound": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "GitlabDeleteResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ]
+      },
+      "GitlabImportResult": {
         "type": "object",
         "properties": {
           "imported": {
@@ -3112,6 +3349,290 @@
           "email",
           "image",
           "role"
+        ]
+      },
+      "MemberTaskCount": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "openCount": {
+            "type": "number",
+            "description": "Assigned tasks that are neither finished nor in the backlog (planned)."
+          },
+          "overdueCount": {
+            "type": "number",
+            "description": "Assigned, unfinished tasks whose due date has passed, backlog included."
+          }
+        },
+        "required": [
+          "userId",
+          "openCount",
+          "overdueCount"
+        ]
+      },
+      "MemberTasks": {
+        "type": "object",
+        "properties": {
+          "member": {
+            "$ref": "#/components/schemas/MemberTasksMember"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MemberTasksSummary"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberTaskProject"
+            },
+            "description": "Only projects with a task assigned to the member, in workspace order."
+          }
+        },
+        "required": [
+          "member",
+          "summary",
+          "projects"
+        ]
+      },
+      "MemberTasksMember": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "email",
+          "image",
+          "role",
+          "joinedAt"
+        ]
+      },
+      "MemberTasksSummary": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "open": {
+            "type": "number"
+          },
+          "overdue": {
+            "type": "number"
+          },
+          "done": {
+            "type": "number"
+          },
+          "backlog": {
+            "type": "number"
+          },
+          "archived": {
+            "type": "number"
+          },
+          "projectCount": {
+            "type": "number"
+          },
+          "byStatus": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberTaskStatusCount"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "open",
+          "overdue",
+          "done",
+          "backlog",
+          "archived",
+          "projectCount",
+          "byStatus"
+        ],
+        "description": "Open, done, backlog and archived are exclusive and sum to total; overdue overlaps them."
+      },
+      "MemberTaskStatusCount": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "description": "Whether tasks in this status count as completed."
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "isFinal",
+          "count"
+        ]
+      },
+      "MemberTaskProject": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/MemberTaskProjectCounts"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberTask"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "icon",
+          "isArchived",
+          "counts",
+          "tasks"
+        ]
+      },
+      "MemberTaskProjectCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "open": {
+            "type": "number"
+          },
+          "overdue": {
+            "type": "number"
+          },
+          "done": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "open",
+          "overdue",
+          "done"
+        ],
+        "description": "Open and done leave out backlog and archived tasks; total includes them."
+      },
+      "MemberTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Per-project counter shown as {projectSlug}-{number}."
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "The column slug, or planned/archived for the backlog and archive."
+          },
+          "statusName": {
+            "type": "string",
+            "description": "The column's display name, or one derived from the slug when the status has no column."
+          },
+          "priority": {
+            "type": "string",
+            "description": "One of: no-priority, low, medium, high, urgent."
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "dueDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "isCompleted": {
+            "type": "boolean",
+            "description": "True when the task's column is marked final or the task is archived. Without a matching column, only the done slug counts."
+          },
+          "isOverdue": {
+            "type": "boolean",
+            "description": "Not completed and past its due date."
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "status",
+          "statusName",
+          "priority",
+          "startDate",
+          "dueDate",
+          "createdAt",
+          "projectId",
+          "isCompleted",
+          "isOverdue"
         ]
       },
       "UserAvatar": {
@@ -10164,6 +10685,9 @@
                   "repositoryName": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "accessToken": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -10297,6 +10821,9 @@
                   "repositoryName": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "accessToken": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -11037,6 +11564,512 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GiteaImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "projectId is required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing task:create permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gitlab-integration/repositories": {
+      "post": {
+        "operationId": "listGitlabRepositories",
+        "tags": [
+          "GitLab"
+        ],
+        "summary": "List GitLab repositories",
+        "description": "List the repositories a GitLab token can reach, for picking one to link. Sent as a POST because the token travels in the body rather than the URL.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "baseUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "accessToken": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "projectId",
+                  "baseUrl",
+                  "accessToken"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accessible repositories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabRepositoryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, or unknown project",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gitlab-integration/verify": {
+      "post": {
+        "operationId": "verifyGitlabAccess",
+        "tags": [
+          "GitLab"
+        ],
+        "summary": "Verify GitLab access",
+        "description": "Check that the base URL is a GitLab instance and that the token can reach the repository with the permissions Kaneo needs. Always 200 -- problems are reported in the body.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "baseUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "accessToken": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "repositoryPath": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "projectId",
+                  "baseUrl",
+                  "accessToken",
+                  "repositoryPath"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabVerificationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, or unknown project",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gitlab-integration/project/{projectId}": {
+      "get": {
+        "operationId": "getGitlabIntegration",
+        "tags": [
+          "GitLab"
+        ],
+        "summary": "Get GitLab integration",
+        "description": "Get the GitLab integration for a project, or null when none is configured. The webhook secret is included only for callers with workspace:manage_settings.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GitLab integration details, or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabIntegration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown project, or its workspace could not be determined",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No access to the project's workspace",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createGitlabIntegration",
+        "tags": [
+          "GitLab"
+        ],
+        "summary": "Create GitLab integration",
+        "description": "Link a project to a GitLab repository, creating the webhook GitLab will post events to. Use the verify route first to confirm the token really reaches the repository.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "baseUrl": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "accessToken": {
+                    "type": "string",
+                    "description": "Omit to keep the token already stored for this project."
+                  },
+                  "repositoryPath": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "baseUrl",
+                  "repositoryPath"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The stored integration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabIntegration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, or unknown project",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateGitlabIntegration",
+        "tags": [
+          "GitLab"
+        ],
+        "summary": "Update GitLab integration",
+        "description": "Update the GitLab integration. Omitted fields keep their current value.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "commentTaskLinkOnGitlabIssue": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated integration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabIntegration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The resulting config failed validation",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Integration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabIntegrationNotFound"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteGitlabIntegration",
+        "tags": [
+          "GitLab"
+        ],
+        "summary": "Delete GitLab integration",
+        "description": "Unlink a project from its GitLab repository.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "projectId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The integration was removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabDeleteResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown project, or its workspace could not be determined",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing workspace:manage_settings",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GitLab integration not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gitlab-integration/import-issues": {
+      "post": {
+        "operationId": "importGitlabIssues",
+        "tags": [
+          "GitLab"
+        ],
+        "summary": "Import GitLab issues",
+        "description": "Import the linked repository's issues as tasks. Issues that already have a task are refreshed rather than duplicated.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "projectId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Import summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabImportResult"
                 }
               }
             }
@@ -13384,6 +14417,137 @@
           },
           "403": {
             "description": "No access to the workspace",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace/{workspaceId}/members/task-counts": {
+      "get": {
+        "operationId": "getWorkspaceMemberTaskCounts",
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Get member task counts",
+        "description": "Get open and overdue task counts per assignee across every project in the workspace. Assignees with no counted tasks are omitted, and an assignee may no longer be a workspace member.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "workspaceId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task counts per assignee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MemberTaskCount"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Workspace ID could not be determined",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing task:read permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace/{workspaceId}/members/{userId}/tasks": {
+      "get": {
+        "operationId": "getWorkspaceMemberTasks",
+        "tags": [
+          "Workspaces"
+        ],
+        "summary": "Get member tasks",
+        "description": "Get every task assigned to one workspace member, grouped by project, with a workspace-wide summary. A task is complete when its column is marked final.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "workspaceId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member's tasks with a summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberTasks"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Workspace ID could not be determined",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "No workspace access, or missing task:read permission",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The user is not a member of this workspace",
             "content": {
               "text/plain": {
                 "schema": {

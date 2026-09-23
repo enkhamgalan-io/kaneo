@@ -1,4 +1,5 @@
 import { DEFAULT_ROLE_NAMES } from "@kaneo/permissions";
+import { useNavigate } from "@tanstack/react-router";
 import {
   CopyIcon,
   EllipsisIcon,
@@ -11,9 +12,11 @@ import { useTranslation } from "react-i18next";
 import useCancelInvitation from "@/hooks/mutations/workspace-user/use-cancel-invitation";
 import useDeleteWorkspaceUser from "@/hooks/mutations/workspace-user/use-delete-workspace-user";
 import useUpdateWorkspaceUserRole from "@/hooks/mutations/workspace-user/use-update-workspace-user-role";
+import useGetMemberTaskCounts from "@/hooks/queries/workspace/use-get-member-task-counts";
 import useWorkspaceRoles from "@/hooks/queries/workspace/use-workspace-roles";
 import { useCopyInvitationLink } from "@/hooks/use-copy-invitation-link";
 import { useWorkspacePermission } from "@/hooks/use-workspace-permission";
+import { toneFor } from "@/lib/avatar-tone";
 import { cn } from "@/lib/cn";
 import { formatDateMedium } from "@/lib/format";
 import { getInitials } from "@/lib/get-initials";
@@ -58,32 +61,11 @@ type Props = {
   users: WorkspaceUser[];
 };
 
-// Stable per-user pastel for the avatar fallback. Picks one of a curated set
-// of Tailwind tone pairs from a cheap string hash so the same user keeps the
-// same color across re-renders without server-side state.
-const AVATAR_TONES = [
-  "bg-rose-500/15 text-rose-600 dark:text-rose-300",
-  "bg-amber-500/15 text-amber-600 dark:text-amber-300",
-  "bg-sky-500/15 text-sky-600 dark:text-sky-300",
-  "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
-  "bg-violet-500/15 text-violet-600 dark:text-violet-300",
-  "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300",
-] as const;
-
 // Names that are NOT "truly custom": viewer/member/admin are seeded as
 // editable workspace_role rows on every workspace creation, and owner is a
 // static built-in. The Select already lists them as built-ins, so we filter
 // them out of the custom-roles tail to avoid duplicate options.
 const RESERVED_ROLE_NAMES = new Set<string>([...DEFAULT_ROLE_NAMES, "owner"]);
-
-function toneFor(value: string): string {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return AVATAR_TONES[Math.abs(hash) % AVATAR_TONES.length];
-}
 
 function capitalize(value: string): string {
   if (!value) return value;
@@ -98,7 +80,9 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
   const [invitationToCancel, setInvitationToCancel] =
     useState<WorkspaceUserInvitation | null>(null);
 
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { data: taskCounts } = useGetMemberTaskCounts(workspaceId);
   const { mutateAsync: deleteWorkspaceUser, isPending: isDeleting } =
     useDeleteWorkspaceUser();
   const { mutateAsync: cancelInvitation, isPending: isCancelling } =
@@ -115,6 +99,17 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
   const customRoles = allWorkspaceRoles.filter(
     (role) => !RESERVED_ROLE_NAMES.has(role.role),
   );
+
+  const taskCountsByUserId = new Map(
+    (taskCounts ?? []).map((count) => [count.userId, count]),
+  );
+
+  const openMemberTasks = (userId: string) => {
+    navigate({
+      to: "/dashboard/workspace/$workspaceId/members/$userId",
+      params: { workspaceId, userId },
+    });
+  };
 
   // Owner first, then everyone else (stable on ties so the original
   // listMembers order is preserved within each group).
@@ -195,6 +190,11 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
               {t("team:membersTable.columns.role", { defaultValue: "Role" })}
             </TableHead>
             <TableHead className="text-foreground font-medium">
+              {t("team:membersTable.columns.tasks", {
+                defaultValue: "Tasks",
+              })}
+            </TableHead>
+            <TableHead className="text-foreground font-medium">
               {t("team:membersTable.columns.joined", {
                 defaultValue: "Joined",
               })}
@@ -208,8 +208,13 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
             const showRoleSelect =
               canChangeRoles && !isSelf && member.role !== "owner";
             const tone = toneFor(member.user.email);
+            const counts = taskCountsByUserId.get(member.userId);
             return (
-              <TableRow key={member.user.email}>
+              <TableRow
+                key={member.user.email}
+                className="cursor-pointer"
+                onClick={() => openMemberTasks(member.userId)}
+              >
                 <TableCell className="ps-6 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className={cn("size-8", tone)}>
@@ -238,7 +243,14 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="py-3">
+                {/* The role control lives inside a clickable row, so its
+                    clicks must not also open the member's task page. */}
+                {/* The role control lives inside a clickable row, so its
+                    clicks must not also open the member's task page. */}
+                <TableCell
+                  className="py-3"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {member.role === "owner" ? (
                     <Badge variant="outline" className="gap-1">
                       <ShieldIcon className="size-3" />
@@ -289,10 +301,33 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
                     </Badge>
                   )}
                 </TableCell>
+                <TableCell className="py-3 text-sm tabular-nums">
+                  {counts && counts.openCount + counts.overdueCount > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">
+                        {t("team:membersTable.openTasks", {
+                          count: counts.openCount,
+                        })}
+                      </span>
+                      {counts.overdueCount > 0 ? (
+                        <Badge variant="error" size="sm">
+                          {t("team:membersTable.overdueTasks", {
+                            count: counts.overdueCount,
+                          })}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">–</span>
+                  )}
+                </TableCell>
                 <TableCell className="py-3 text-sm text-muted-foreground tabular-nums">
                   {member.createdAt ? formatDateMedium(member.createdAt) : "–"}
                 </TableCell>
-                <TableCell className="pe-6 py-3 text-right">
+                <TableCell
+                  className="pe-6 py-3 text-right"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {!isSelf && canRemove ? (
                     <Menu>
                       <MenuTrigger
@@ -360,6 +395,11 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
                   })}
                 </Badge>
               </TableCell>
+              {/* Tasks and Joined: an invitee has no account yet, so neither
+                  column has a value to show. */}
+              <TableCell className="py-3 text-sm text-muted-foreground">
+                –
+              </TableCell>
               <TableCell className="py-3 text-sm text-muted-foreground">
                 –
               </TableCell>
@@ -402,7 +442,7 @@ function MembersTable({ workspaceId, invitations, users }: Props) {
 
           {users.length === 0 && pendingInvitations.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="py-16 text-center">
+              <TableCell colSpan={5} className="py-16 text-center">
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                   <p className="text-sm font-medium text-foreground">
                     {t("team:membersTable.emptyTitle")}

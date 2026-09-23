@@ -54,6 +54,18 @@ vi.mock("@/hooks/queries/workspace/use-workspace-roles", () => ({
   default: () => ({ data: [] }),
 }));
 
+const memberTaskCounts = vi.fn(() => ({ data: [] as unknown[] }));
+
+vi.mock("@/hooks/queries/workspace/use-get-member-task-counts", () => ({
+  default: () => memberTaskCounts(),
+}));
+
+const navigate = vi.fn();
+
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => navigate,
+}));
+
 const canInviteUsers = vi.fn(() => true);
 
 vi.mock("@/hooks/use-workspace-permission", () => ({
@@ -70,6 +82,7 @@ vi.mock("../providers/auth-provider/hooks/use-auth", () => ({
 
 beforeEach(() => {
   canInviteUsers.mockReturnValue(true);
+  memberTaskCounts.mockReturnValue({ data: [] });
 });
 
 afterEach(() => {
@@ -160,5 +173,102 @@ describe("MembersTable pending invitation row menu", () => {
         name: "team:membersTable.ariaInvitationActions",
       }),
     ).toBeNull();
+  });
+});
+
+const member = {
+  id: "membership-1",
+  userId: "user-1",
+  role: "member",
+  createdAt: "2026-09-01T00:00:00.000Z",
+  user: {
+    name: "Ada Lovelace",
+    email: "ada@example.com",
+    image: null,
+  },
+} as unknown as WorkspaceUser;
+
+describe("MembersTable member rows", () => {
+  it("opens the member's task page keyed on the user id, not the membership id", () => {
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Ada Lovelace"));
+
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/dashboard/workspace/$workspaceId/members/$userId",
+      params: { workspaceId: "workspace-1", userId: "user-1" },
+    });
+  });
+
+  it("does not navigate when the row action menu is opened", async () => {
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "team:membersTable.ariaRemoveMember",
+      }),
+    );
+
+    expect(
+      await screen.findByRole("menuitem", {
+        name: "team:membersTable.removeMember",
+      }),
+    ).toBeVisible();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("does not navigate when the role select is opened", () => {
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox"));
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("shows open and overdue counts for the member", () => {
+    memberTaskCounts.mockReturnValue({
+      data: [{ userId: "user-1", openCount: 4, overdueCount: 2 }],
+    });
+
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    expect(screen.getByText("team:membersTable.openTasks")).toBeVisible();
+    expect(screen.getByText("team:membersTable.overdueTasks")).toBeVisible();
+  });
+
+  it("shows a placeholder when the member has no open or overdue work", () => {
+    render(
+      <MembersTable
+        workspaceId="workspace-1"
+        invitations={[]}
+        users={[member]}
+      />,
+    );
+
+    expect(screen.queryByText("team:membersTable.openTasks")).toBeNull();
   });
 });

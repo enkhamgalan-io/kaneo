@@ -8712,9 +8712,12 @@
 								},
 								"actions": {
 									"type": "string"
+								},
+								"tasks": {
+									"type": "string"
 								}
 							},
-							"required": ["name", "role", "joined", "actions"]
+							"required": ["name", "role", "joined", "actions", "tasks"]
 						},
 						"memberRolePending": {
 							"type": "string"
@@ -8763,6 +8766,42 @@
 						},
 						"roleUpdateError": {
 							"type": "string"
+						},
+						"openTasks_one": {
+							"type": "string"
+						},
+						"openTasks_zero": {
+							"type": "string"
+						},
+						"openTasks_two": {
+							"type": "string"
+						},
+						"openTasks_few": {
+							"type": "string"
+						},
+						"openTasks_many": {
+							"type": "string"
+						},
+						"openTasks_other": {
+							"type": "string"
+						},
+						"overdueTasks_one": {
+							"type": "string"
+						},
+						"overdueTasks_zero": {
+							"type": "string"
+						},
+						"overdueTasks_two": {
+							"type": "string"
+						},
+						"overdueTasks_few": {
+							"type": "string"
+						},
+						"overdueTasks_many": {
+							"type": "string"
+						},
+						"overdueTasks_other": {
+							"type": "string"
 						}
 					},
 					"required": [
@@ -8786,6 +8825,137 @@
 						"roleUpdateSuccess",
 						"roleUpdateError"
 					]
+				},
+				"memberTasks": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"pageTitle": {
+							"type": "string"
+						},
+						"backToMembers": {
+							"type": "string"
+						},
+						"notFoundTitle": {
+							"type": "string"
+						},
+						"notFoundDescription": {
+							"type": "string"
+						},
+						"emptyTitle": {
+							"type": "string"
+						},
+						"emptyDescription": {
+							"type": "string"
+						},
+						"summary": {
+							"type": "object",
+							"additionalProperties": false,
+							"properties": {
+								"total": {
+									"type": "string"
+								},
+								"open": {
+									"type": "string"
+								},
+								"overdue": {
+									"type": "string"
+								},
+								"done": {
+									"type": "string"
+								},
+								"backlog": {
+									"type": "string"
+								},
+								"archived": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"total",
+								"open",
+								"overdue",
+								"done",
+								"backlog",
+								"archived"
+							]
+						},
+						"byState": {
+							"type": "string"
+						},
+						"acrossProjects_one": {
+							"type": "string"
+						},
+						"acrossProjects_zero": {
+							"type": "string"
+						},
+						"acrossProjects_two": {
+							"type": "string"
+						},
+						"acrossProjects_few": {
+							"type": "string"
+						},
+						"acrossProjects_many": {
+							"type": "string"
+						},
+						"acrossProjects_other": {
+							"type": "string"
+						},
+						"projectArchived": {
+							"type": "string"
+						},
+						"projectCounts": {
+							"type": "string"
+						},
+						"overdueCount_one": {
+							"type": "string"
+						},
+						"overdueCount_zero": {
+							"type": "string"
+						},
+						"overdueCount_two": {
+							"type": "string"
+						},
+						"overdueCount_few": {
+							"type": "string"
+						},
+						"overdueCount_many": {
+							"type": "string"
+						},
+						"overdueCount_other": {
+							"type": "string"
+						},
+						"completedTasks_one": {
+							"type": "string"
+						},
+						"completedTasks_zero": {
+							"type": "string"
+						},
+						"completedTasks_two": {
+							"type": "string"
+						},
+						"completedTasks_few": {
+							"type": "string"
+						},
+						"completedTasks_many": {
+							"type": "string"
+						},
+						"completedTasks_other": {
+							"type": "string"
+						}
+					},
+					"required": [
+						"pageTitle",
+						"backToMembers",
+						"notFoundTitle",
+						"notFoundDescription",
+						"emptyTitle",
+						"emptyDescription",
+						"summary",
+						"byState",
+						"projectArchived",
+						"projectCounts"
+					]
 				}
 			},
 			"required": [
@@ -8793,7 +8963,8 @@
 				"members",
 				"invitations",
 				"inviteModal",
-				"membersTable"
+				"membersTable",
+				"memberTasks"
 			]
 		},
 		"publicProject": {
