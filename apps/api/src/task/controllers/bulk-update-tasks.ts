@@ -101,6 +101,15 @@ async function bulkUpdateTasks({
       }
       const projectIds = [...new Set(tasks.map((t) => t.projectId))];
 
+      // A selection can span projects whose columns differ. Every project is
+      // checked before anything is written, and the writes share one
+      // transaction, so a status one project lacks fails the whole request
+      // instead of leaving the earlier projects already moved.
+      const targets: Array<{
+        projectId: string;
+        columnId: string | null;
+        taskIds: string[];
+      }> = [];
       for (const projectId of projectIds) {
         await assertValidTaskStatus(value, projectId);
 
@@ -111,21 +120,34 @@ async function bulkUpdateTasks({
           ),
         });
 
-        const projectTaskIds = tasks
-          .filter((t) => t.projectId === projectId)
-          .map((t) => t.id);
+        targets.push({
+          projectId,
+          columnId: column?.id ?? null,
+          taskIds: tasks
+            .filter((t) => t.projectId === projectId)
+            .map((t) => t.id),
+        });
+      }
 
-        const result = await db
-          .update(taskTable)
-          .set({ status: value, columnId: column?.id ?? null })
-          .where(inArray(taskTable.id, projectTaskIds));
+      updatedCount = await db.transaction(async (tx) => {
+        let count = 0;
+        for (const target of targets) {
+          const result = await tx
+            .update(taskTable)
+            .set({ status: value, columnId: target.columnId })
+            .where(inArray(taskTable.id, target.taskIds));
+          count += result.rowCount ?? target.taskIds.length;
+        }
+        return count;
+      });
 
-        updatedCount += result.rowCount ?? projectTaskIds.length;
-
-        for (const taskId of projectTaskIds) {
+      // Only once the writes are committed, so no listener acts on a change
+      // that was rolled back.
+      for (const target of targets) {
+        for (const taskId of target.taskIds) {
           await publishEvent("task.status_changed", {
             taskId,
-            projectId,
+            projectId: target.projectId,
             userId,
             newStatus: value,
             type: "status_changed",
@@ -133,7 +155,7 @@ async function bulkUpdateTasks({
         }
 
         await publishEvent("task-relation.refresh", {
-          projectId,
+          projectId: target.projectId,
           userId,
         });
       }
